@@ -1,0 +1,620 @@
+Rozdzial 8 (v 3.2.6)
+
+1) kuba@traktor:~$ cd rails3/sample_app/
+2) kuba@traktor:~/rails3/sample_app$ git checkout -b sign-in-out
+3) kuba@traktor:~/rails3/sample_app$ rails generate controller Sessions --no-test-framework
+4) kuba@traktor:~/rails3/sample_app$ rails generate integration_test authentication_pages
+5) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+
+  subject { page }
+
+  describe "signin page" do
+    before { visit signin_path }
+
+    it { should have_selector('h1',    text: 'Sign in') }
+    it { should have_selector('title', text: 'Sign in') }
+  end
+end
+
+6) kuba@traktor:~/rails3/sample_app$ bundle exec rspes spec/requests/authentication_pages_spec.rb (fail)
+7) #config/routes.rb
+
+SampleApp::Application.routes.draw do
+  resources :users
+  resources :sessions, only: [:new, :create, :destroy]
+
+  match '/signup',  to: 'users#new'
+  match '/signin',  to: 'sessions#new'
+  match '/signout', to: 'sessions#destroy', via: :delete
+  .
+  .
+  .
+end
+
+8) #app/controllers/sessions_controller.rb
+
+class SessionsController < ApplicationController
+
+  def new
+  end
+
+  def create
+  end
+
+  def destroy
+  end
+end
+
+9) kuba@traktor:~/rails3/sample_app$ touch app/views/sessions/new.html.erb
+10) #app/views/sessions/new.html.erb
+
+<% provide(:title, "Sign in") %>
+<h1>Sign in</h1>
+
+11) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb (pass)
+12) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+  .
+  .
+  .
+  describe "signin" do
+    before { visit signin_path }
+
+    describe "with invalid information" do
+      before { click_button "Sign in" }
+
+      it { should have_selector('title', text: 'Sign in') }
+      it { should have_selector('div.alert.alert-error', text: 'Invalid') }
+    end
+    
+    describe "with valid information" do
+      let(:user) { FactoryGirl.create(:user) }
+      before do
+        fill_in "Email",    with: user.email
+        fill_in "Password", with: user.password
+        click_button "Sign in"
+      end
+
+      it { should have_selector('title', text: user.name) }
+      it { should have_link('Profile', href: user_path(user)) }
+      it { should have_link('Sign out', href: signout_path) }
+      it { should_not have_link('Sign in', href: signin_path) }
+    end
+  end
+end
+
+13) #app/views/sessions/new.html.erb
+
+<% provide(:title, "Sign in") %>
+<h1>Sign in</h1>
+
+<div class="row">
+  <div class="span6 offset3">
+    <%= form_for(:session, url: sessions_path) do |f| %>
+
+      <%= f.label :email %>
+      <%= f.text_field :email %>
+
+      <%= f.label :password %>
+      <%= f.password_field :password %>
+
+      <%= f.submit "Sign in", class: "btn btn-large btn-primary" %>
+    <% end %>
+
+    <p>New user? <%= link_to "Sign up now!", signup_path %></p>
+  </div>
+</div>
+
+14) #app/controllers/sessions_controller.rb
+
+class SessionsController < ApplicationController
+
+  def new
+  end
+
+  def create
+    user = User.find_by_email(params[:session][:email])
+    if user && user.authenticate(params[:session][:password])
+      # Sign the user in and redirect to the user's show page.
+    else
+      flash[:error] = 'Invalid email/password combination' # Not quite right!
+      render 'new'
+    end
+  end
+
+  def destroy
+  end
+end
+
+15) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb -e "signin with invalid information" (pass)
+16) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+  .
+  .
+  .
+  describe "signin" do
+
+    before { visit signin_path }
+
+    describe "with invalid information" do
+      before { click_button "Sign in" }
+
+      it { should have_selector('title', text: 'Sign in') }
+      it { should have_selector('div.alert.alert-error', text: 'Invalid') }
+
+      describe "after visiting another page" do
+        before { click_link "Home" }
+        it { should_not have_selector('div.alert.alert-error') }
+      end
+    end
+    .
+    .
+    .
+  end
+end
+
+17) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb -e "signin with invalid information" (fail)
+18) #app/controllers/sessions_controller.rb
+
+class SessionsController < ApplicationController
+
+  def new
+  end
+
+  def create
+    user = User.find_by_email(params[:session][:email])
+    if user && user.authenticate(params[:session][:password])
+      # Sign the user in and redirect to the user's show page.
+    else
+      flash.now[:error] = 'Invalid email/password combination'
+      render 'new'
+    end
+  end
+
+  def destroy
+  end
+end
+
+19) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb -e "signin with invalid information" (pass)
+20) #app/controllers/sessions_controller.rb
+
+class SessionsController < ApplicationController
+  .
+  .
+  .
+  def create
+    user = User.find_by_email(params[:session][:email])
+    if user && user.authenticate(params[:session][:password])
+      sign_in user
+      redirect_to user
+    else
+      flash.now[:error] = 'Invalid email/password combination'
+      render 'new'
+    end
+  end
+  .
+  .
+  .
+end
+
+21) #app/controllers/application_controller.rb
+
+class ApplicationController < ActionController::Base
+  protect_from_forgery
+  include SessionsHelper
+end
+
+22) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:password_confirmation) }
+  it { should respond_to(:remember_token) }
+  it { should respond_to(:authenticate) }  
+  .
+  .
+  .
+end
+
+23) kuba@traktor:~/rails3/sample_app$ rails generate migration add_remember_token_to_users
+24) #db/migrate/20120728103339_add_remember_token_to_users.rb
+
+class AddRememberTokenToUsers < ActiveRecord::Migration
+  def change
+    add_column :users, :remember_token, :string
+    add_index  :users, :remember_token
+  end
+end
+
+25) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:migrate
+26) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+27) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+28) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com", 
+                     password: "foobar", password_confirmation: "foobar")
+  end
+
+  subject { @user }
+  .
+  .
+  .
+  describe "remember token" do
+    before { @user.save }
+    its(:remember_token) { should_not be_blank }
+  end
+end
+
+29) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  attr_accessible :name, :email, :password, :password_confirmation
+  has_secure_password
+
+  before_save { |user| user.email = email.downcase }
+  before_save :create_remember_token
+  .
+  .
+  .
+  private
+
+    def create_remember_token
+      self.remember_token = SecureRandom.urlsafe_base64
+    end
+end
+
+30) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+31) #app/helpers/sessions_helper.rb
+
+module SessionsHelper
+
+  def sign_in(user)
+    cookies.permanent[:remember_token] = user.remember_token
+    self.current_user = user
+  end
+  
+  def signed_in?
+    !current_user.nil?
+  end
+  
+  def current_user=(user)
+    @current_user = user
+  end
+  
+  def current_user
+    @current_user ||= User.find_by_remember_token(cookies[:remember_token])
+  end
+end
+
+32) #app/views/layouts/_header.html.erb
+
+<header class="navbar navbar-fixed-top">
+  <div class="navbar-inner">
+    <div class="container">
+      <%= link_to "sample app", root_path, id: "logo" %>
+      <nav>
+        <ul class="nav pull-right">
+          <li><%= link_to "Home", root_path %></li>
+          <li><%= link_to "Help", help_path %></li>
+          <% if signed_in? %>
+            <li><%= link_to "Users", '#' %></li>
+            <li id="fat-menu" class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                Account <b class="caret"></b>
+              </a>
+              <ul class="dropdown-menu">
+                <li><%= link_to "Profile", current_user %></li>
+                <li><%= link_to "Settings", '#' %></li>
+                <li class="divider"></li>
+                <li>
+                  <%= link_to "Sign out", signout_path, method: "delete" %>
+                </li>
+              </ul>
+            </li>
+          <% else %>
+            <li><%= link_to "Sign in", signin_path %></li>
+          <% end %>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</header>
+
+33) #app/assets/javascripts/application.js
+
+//= require jquery
+//= require jquery_ujs
+//= require bootstrap
+//= require_tree .
+
+34) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb (pass)
+35) kuba@traktor:~/rails3/sample_app$ rails console
+Loading development environment (Rails 3.2.6)
+1.9.3p194 :001 > User.first.remember_token
+  User Load (0.4ms)  SELECT "users".* FROM "users" LIMIT 1
+ => nil 
+1.9.3p194 :002 > User.all.each { |user| user.save(validate: false) }
+  User Load (0.5ms)  SELECT "users".* FROM "users" 
+   (0.2ms)  begin transaction
+   (0.9ms)  UPDATE "users" SET "remember_token" = 'tKnk829jrB5MHdpDrUoijQ', "updated_at" = '2012-07-28 10:59:39.364907' WHERE "users"."id" = 1
+   (4.5ms)  commit transaction
+ => [#<User id: 1, name: "Rails Tutorial", email: "example@railstutorial.org", created_at: "2012-07-27 15:33:05", updated_at: "2012-07-28 10:59:39", password_digest: "$2a$10$zsS2vi2uDUTvvyiI77iZhuzUjOWCthvWVm.p.Z4SbKkV...", remember_token: "tKnk829jrB5MHdpDrUoijQ">] 
+1.9.3p194 :003 > User.first.remember_token
+  User Load (0.5ms)  SELECT "users".* FROM "users" LIMIT 1
+ => "tKnk829jrB5MHdpDrUoijQ"
+ 
+36) #spec/requests/user_pages_spec.rb
+
+    .
+    .
+    .
+    describe "with valid information" do
+      .
+      .
+      .
+      describe "after saving the user" do
+        before { click_button submit }
+        let(:user) { User.find_by_email('user@example.com') }
+
+        it { should have_selector('title', text: user.name) }
+        it { should have_selector('div.alert.alert-success', text: 'Welcome') }
+      end
+      .
+      .
+      .
+ 
+37) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+    .
+    .
+    .
+    describe "with valid information" do
+      .
+      .
+      .
+      describe "after saving the user" do
+        .
+        .
+        .
+        it { should have_link('Sign out') }
+      end
+    end
+  end
+end
+
+38) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  .
+  .
+  .
+  def create
+    @user = User.new(params[:user])
+    if @user.save
+      sign_in @user
+      flash[:success] = "Welcome to the Sample App!"
+      redirect_to @user
+    else
+      render 'new'
+    end
+  end
+end
+
+39) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+  .
+  .
+  .
+  describe "signin" do
+    .
+    .
+    .
+    describe "with valid information" do
+      .
+      .
+      .
+      describe "followed by signout" do
+        before { click_link "Sign out" }
+        it { should have_link('Sign in') }
+      end
+    end
+  end
+end
+
+40) #app/controllers/sessions_controller.rb
+
+class SessionsController < ApplicationController
+  .
+  .
+  .
+  def destroy
+    sign_out
+    redirect_to root_path
+  end
+end
+
+41) #app/helpers/sessions_helper.rb
+
+module SessionsHelper
+
+  def sign_in(user)
+    cookies.permanent[:remember_token] = user.remember_token
+    self.current_user = user
+  end
+  .
+  .
+  .
+  def sign_out
+    self.current_user = nil
+    cookies.delete(:remember_token)
+  end
+end
+
+42) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb (pass)
+43) #Gemfile
+
+  .
+  .
+  .
+group :test do
+  .
+  .
+  .
+  gem 'cucumber-rails', '1.2.1', require: false
+  gem 'database_cleaner', '0.7.0'
+end
+.
+.
+.
+
+44) kuba@traktor:~/rails3/sample_app$ bundle install --without production
+45) kuba@traktor:~/rails3/sample_app$ rails generate cucumber:install
+46) kuba@traktor:~/rails3/sample_app$ touch features/signing_in.feature
+47) #features/signing_in.feature
+
+Feature: Signing in
+  
+  Scenario: Unsuccessful signin
+    Given a user visits the signin page
+    When he submits invalid signin information
+    Then he should see an error message
+  
+  Scenario: Successful signin
+    Given a user visits the signin page
+      And the user has an account
+      And the user submits valid signin information
+    Then he should see his profile page
+      And he should see a signout link
+
+48) kuba@traktor:~/rails3/sample_app$ bundle exec cucumber features/
+49) kuba@traktor:~/rails3/sample_app$ bundle exec rake cucumber
+50) kuba@traktor:~/rails3/sample_app$ touch features/step_definitions/authentication_steps.rb
+51) #features/step_definitions/authentication_steps.rb
+
+Given /^a user visits the signin page$/ do
+  visit signin_path
+end
+
+When /^he submits invalid signin information$/ do
+  click_button "Sign in"
+end
+
+Then /^he should see an error message$/ do
+  page.should have_selector('div.alert.alert-error')
+end
+
+Given /^the user has an account$/ do
+  @user = User.create(name: "Example User", email: "user@example.com",
+                      password: "foobar", password_confirmation: "foobar")
+end
+
+When /^the user submits valid signin information$/ do
+  fill_in "Email",    with: @user.email
+  fill_in "Password", with: @user.password 
+  click_button "Sign in"
+end
+
+Then /^he should see his profile page$/ do
+  page.should have_selector('title', text: @user.name)
+end
+
+Then /^he should see a signout link$/ do
+  page.should have_link('Sign out', href: signout_path)
+end
+
+52) kuba@traktor:~/rails3/sample_app$ bundle exec cucumber features/ (pass)
+53) kuba@traktor:~/rails3/sample_app$ git status
+# On branch sign-in-out
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#	modified:   app/assets/javascripts/application.js
+#	modified:   app/controllers/application_controller.rb
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/models/user.rb
+#	modified:   app/views/layouts/_header.html.erb
+#	modified:   config/database.yml
+#	modified:   config/routes.rb
+#	modified:   db/schema.rb
+#	modified:   spec/models/user_spec.rb
+#	modified:   spec/requests/user_pages_spec.rb
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	app/assets/javascripts/sessions.js
+#	app/assets/stylesheets/sessions.css.scss
+#	app/controllers/sessions_controller.rb
+#	app/helpers/sessions_helper.rb
+#	app/views/sessions/
+#	config/cucumber.yml
+#	db/migrate/20120728103339_add_remember_token_to_users.rb
+#	features/
+#	lib/tasks/cucumber.rake
+#	script/cucumber
+#	spec/requests/authentication_pages_spec.rb
+no changes added to commit (use "git add" and/or "git commit -a")
+
+54) kuba@traktor:~/rails3/sample_app$ git add .
+55) kuba@traktor:~/rails3/sample_app$ git status
+# On branch sign-in-out
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#	modified:   app/assets/javascripts/application.js
+#	new file:   app/assets/javascripts/sessions.js
+#	new file:   app/assets/stylesheets/sessions.css.scss
+#	modified:   app/controllers/application_controller.rb
+#	new file:   app/controllers/sessions_controller.rb
+#	modified:   app/controllers/users_controller.rb
+#	new file:   app/helpers/sessions_helper.rb
+#	modified:   app/models/user.rb
+#	modified:   app/views/layouts/_header.html.erb
+#	new file:   app/views/sessions/new.html.erb
+#	new file:   config/cucumber.yml
+#	modified:   config/database.yml
+#	modified:   config/routes.rb
+#	new file:   db/migrate/20120728103339_add_remember_token_to_users.rb
+#	modified:   db/schema.rb
+#	new file:   features/signing_in.feature
+#	new file:   features/step_definitions/authentication_steps.rb
+#	new file:   features/support/env.rb
+#	new file:   lib/tasks/cucumber.rake
+#	new file:   script/cucumber
+#	modified:   spec/models/user_spec.rb
+#	new file:   spec/requests/authentication_pages_spec.rb
+#	modified:   spec/requests/user_pages_spec.rb
+
+56) kuba@traktor:~/rails3/sample_app$ git commit -m "Finish sign in"
+57) kuba@traktor:~/rails3/sample_app$ git checkout master
+58) kuba@traktor:~/rails3/sample_app$ git merge sign-in-out
+59) kuba@traktor:~/rails3/sample_app$ git push

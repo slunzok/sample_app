@@ -1,0 +1,650 @@
+Rozdzial 6 (v 3.2.6)
+
+1) kuba@traktor:~$ cd rails3/sample_app/
+2) kuba@traktor:~/rails3/sample_app$ git checkout -b modeling-users
+3) kuba@traktor:~/rails3/sample_app$ rails generate model User name:string email:string
+4) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:migrate
+5) #Gemfile
+
+source 'https://rubygems.org'
+.
+.
+.
+group :development, :test do
+  gem 'sqlite3', '1.3.5'
+  gem 'rspec-rails', '2.10.0'
+end
+
+gem 'annotate', '~> 2.4.1.beta', group: :development
+
+group :test do
+  .
+  .
+  .
+end
+
+6) kuba@traktor:~/rails3/sample_app$ bundle install --without production
+7) kuba@traktor:~/rails3/sample_app$ bundle exec annotate --position before
+Annotated (1): User
+8) #app/models/user.rb
+
+# == Schema Information
+#
+# Table name: users
+#
+#  id         :integer         not null, primary key
+#  name       :string(255)
+#  email      :string(255)
+#  created_at :datetime        not null
+#  updated_at :datetime        not null
+#
+
+class User < ActiveRecord::Base
+  attr_accessible :email, :name
+end
+
+9) kuba@traktor:~/rails3/sample_app$ rails console --sandbox
+Loading development environment in sandbox (Rails 3.2.6)
+Any modifications you make will be rolled back on exit
+1.9.3p194 :001 > User.new
+ => #<User id: nil, name: nil, email: nil, created_at: nil, updated_at: nil> 
+1.9.3p194 :002 > user = User.new(name: "slunzok", email: "slunzok@gmail.com")
+ => #<User id: nil, name: "slunzok", email: "slunzok@gmail.com", created_at: nil, updated_at: nil> 
+1.9.3p194 :003 > user.save
+   (0.2ms)  SAVEPOINT active_record_1
+  SQL (78.3ms)  INSERT INTO "users" ("created_at", "email", "name", "updated_at") VALUES (?, ?, ?, ?)  [["created_at", Fri, 27 Jul 2012 08:10:34 UTC +00:00], ["email", "slunzok@gmail.com"], ["name", "slunzok"], ["updated_at", Fri, 27 Jul 2012 08:10:34 UTC +00:00]]
+   (0.2ms)  RELEASE SAVEPOINT active_record_1
+ => true 
+1.9.3p194 :004 > user
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 08:10:34", updated_at: "2012-07-27 08:10:34"> 
+1.9.3p194 :005 > user.name
+ => "slunzok" 
+1.9.3p194 :006 > user.email
+ => "slunzok@gmail.com" 
+1.9.3p194 :007 > user.updated_at
+ => Fri, 27 Jul 2012 08:10:34 UTC +00:00 
+1.9.3p194 :008 > User.create(name: "Foo Bar", email: "foobar@example.org")
+   (0.2ms)  SAVEPOINT active_record_1
+  SQL (37.3ms)  INSERT INTO "users" ("created_at", "email", "name", "updated_at") VALUES (?, ?, ?, ?)  [["created_at", Fri, 27 Jul 2012 08:12:44 UTC +00:00], ["email", "foobar@example.org"], ["name", "Foo Bar"], ["updated_at", Fri, 27 Jul 2012 08:12:44 UTC +00:00]]
+   (0.2ms)  RELEASE SAVEPOINT active_record_1
+ => #<User id: 2, name: "Foo Bar", email: "foobar@example.org", created_at: "2012-07-27 08:12:44", updated_at: "2012-07-27 08:12:44"> 
+1.9.3p194 :009 > foo = User.create(name: "just me again", email: "me@example.org")
+   (0.2ms)  SAVEPOINT active_record_1
+  SQL (0.6ms)  INSERT INTO "users" ("created_at", "email", "name", "updated_at") VALUES (?, ?, ?, ?)  [["created_at", Fri, 27 Jul 2012 08:13:44 UTC +00:00], ["email", "me@example.org"], ["name", "just me again"], ["updated_at", Fri, 27 Jul 2012 08:13:44 UTC +00:00]]
+   (0.1ms)  RELEASE SAVEPOINT active_record_1
+ => #<User id: 3, name: "just me again", email: "me@example.org", created_at: "2012-07-27 08:13:44", updated_at: "2012-07-27 08:13:44"> 
+1.9.3p194 :010 > foo.destroy
+   (0.2ms)  SAVEPOINT active_record_1
+  SQL (0.5ms)  DELETE FROM "users" WHERE "users"."id" = ?  [["id", 3]]
+   (0.2ms)  RELEASE SAVEPOINT active_record_1
+ => #<User id: 3, name: "just me again", email: "me@example.org", created_at: "2012-07-27 08:13:44", updated_at: "2012-07-27 08:13:44"> 
+1.9.3p194 :011 > foo
+ => #<User id: 3, name: "just me again", email: "me@example.org", created_at: "2012-07-27 08:13:44", updated_at: "2012-07-27 08:13:44"> 
+1.9.3p194 :012 > User.find(1)
+  User Load (0.5ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT 1  [["id", 1]]
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 08:10:34", updated_at: "2012-07-27 08:10:34"> 
+1.9.3p194 :013 > User.find(3)
+  User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT 1  [["id", 3]]
+ActiveRecord::RecordNotFound: Couldn't find User with id=3
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/activerecord-3.2.6/lib/active_record/relation/finder_methods.rb:341:in `find_one'
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/activerecord-3.2.6/lib/active_record/relation/finder_methods.rb:312:in `find_with_ids'
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/activerecord-3.2.6/lib/active_record/relation/finder_methods.rb:107:in `find'
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/activerecord-3.2.6/lib/active_record/querying.rb:5:in `find'
+	from (irb):13
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/railties-3.2.6/lib/rails/commands/console.rb:47:in `start'
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/railties-3.2.6/lib/rails/commands/console.rb:8:in `start'
+	from /home/kuba/.rvm/gems/ruby-1.9.3-p194/gems/railties-3.2.6/lib/rails/commands.rb:41:in `<top (required)>'
+	from script/rails:6:in `require'
+	from script/rails:6:in `<main>'
+1.9.3p194 :014 > User.find_by_email("slunzok@gmail.com")
+  User Load (0.4ms)  SELECT "users".* FROM "users" WHERE "users"."email" = 'slunzok@gmail.com' LIMIT 1
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 08:10:34", updated_at: "2012-07-27 08:10:34"> 
+1.9.3p194 :015 > User.first
+  User Load (0.3ms)  SELECT "users".* FROM "users" LIMIT 1
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 08:10:34", updated_at: "2012-07-27 08:10:34"> 
+1.9.3p194 :016 > User.all
+  User Load (0.3ms)  SELECT "users".* FROM "users" 
+ => [#<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 08:10:34", updated_at: "2012-07-27 08:10:34">, #<User id: 2, name: "Foo Bar", email: "foobar@example.org", created_at: "2012-07-27 08:12:44", updated_at: "2012-07-27 08:12:44">] 
+1.9.3p194 :017 > user
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 08:10:34", updated_at: "2012-07-27 08:10:34"> 
+1.9.3p194 :018 > user.email = "slunzok@example.net"
+ => "slunzok@example.net" 
+1.9.3p194 :019 > user.save
+   (0.2ms)  SAVEPOINT active_record_1
+   (0.4ms)  UPDATE "users" SET "email" = 'slunzok@example.net', "updated_at" = '2012-07-27 08:17:11.360024' WHERE "users"."id" = 1
+   (0.2ms)  RELEASE SAVEPOINT active_record_1
+ => true 
+1.9.3p194 :020 > user.email
+ => "slunzok@example.net" 
+1.9.3p194 :021 > user.email = "foo@bar.com"
+ => "foo@bar.com" 
+1.9.3p194 :022 > user.reload.email
+  User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = ? LIMIT 1  [["id", 1]]
+ => "slunzok@example.net"
+1.9.3p194 :023 > user.created_at
+ => Fri, 27 Jul 2012 08:10:34 UTC +00:00 
+1.9.3p194 :024 > user.updated_at
+ => Fri, 27 Jul 2012 08:17:11 UTC +00:00 
+1.9.3p194 :025 > user.update_attributes(name: "The Dude", email: "dude@abides.org")
+   (0.2ms)  SAVEPOINT active_record_1
+   (0.7ms)  UPDATE "users" SET "name" = 'The Dude', "email" = 'dude@abides.org', "updated_at" = '2012-07-27 08:19:31.479372' WHERE "users"."id" = 1
+   (0.2ms)  RELEASE SAVEPOINT active_record_1
+ => true 
+1.9.3p194 :026 > user.name
+ => "The Dude" 
+1.9.3p194 :027 > user.email
+ => "dude@abides.org" 
+
+10) #spec/models/user_spec.rb
+
+# == Schema Information
+#
+# Table name: users
+#
+#  id         :integer         not null, primary key
+#  name       :string(255)
+#  email      :string(255)
+#  created_at :datetime        not null
+#  updated_at :datetime        not null
+#
+
+require 'spec_helper'
+
+describe User do
+  pending "add some examples to (or delete) #{__FILE__}"
+end
+
+11) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before { @user = User.new(name: "Example User", email: "user@example.com") }
+
+  subject { @user }
+
+  it { should respond_to(:name) }
+  it { should respond_to(:email) }
+end
+
+12) kuba@traktor:~/rails3/sample_app$ rails console --sandbox
+Loading development environment in sandbox (Rails 3.2.6)
+Any modifications you make will be rolled back on exit
+1.9.3p194 :001 > user = User.new
+ => #<User id: nil, name: nil, email: nil, created_at: nil, updated_at: nil> 
+1.9.3p194 :002 > user.respond_to?(:name)
+ => true 
+1.9.3p194 :003 > user.respond_to?(:foobar)
+ => false 
+
+13) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/
+14) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+15) #app/models/user.rb
+
+class User < ActiveRecord::Base 
+  attr_accessible(:name, :email)
+
+  validates(:name, presence: true)
+end
+
+16) kuba@traktor:~/rails3/sample_app$ rails console --sandbox
+Loading development environment in sandbox (Rails 3.2.6)
+Any modifications you make will be rolled back on exit
+1.9.3p194 :001 > user = User.new(name: "", email: "slunzok@gmail.com")
+ => #<User id: nil, name: "", email: "slunzok@gmail.com", created_at: nil, updated_at: nil> 
+1.9.3p194 :002 > user.save
+   (0.2ms)  SAVEPOINT active_record_1
+   (0.8ms)  ROLLBACK TO SAVEPOINT active_record_1
+ => false 
+1.9.3p194 :003 > user.valid?
+ => false 
+1.9.3p194 :004 > user.errors.full_messages
+ => ["Name can't be blank"] 
+
+17) #app/models/user.rb
+
+class User < ActiveRecord::Base 
+  attr_accessible :name, :email
+
+  #validates :name, presence: true
+end
+
+18) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+
+  subject { @user }
+
+  it { should respond_to(:name) }
+  it { should respond_to(:email) }
+
+  it { should be_valid }
+
+  describe "when name is not present" do
+    before { @user.name = " " }
+    it { should_not be_valid }
+  end
+end
+
+19) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (fail)
+20) uncomment the validation in app/models/user.rb
+21) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+22) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+  .
+  .
+  .
+  describe "when email is not present" do
+    before { @user.email = " " }
+    it { should_not be_valid }
+  end
+end
+
+23) #app/models/user.rb
+
+class User < ActiveRecord::Base 
+  attr_accessible :name, :email
+
+  validates :name,  presence: true
+  validates :email, presence: true
+end
+
+24) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+25) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+  .
+  .
+  .
+  describe "when name is too long" do
+    before { @user.name = "a" * 51 }
+    it { should_not be_valid }
+  end
+end
+
+26) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (fail)
+27) #app/models/user.rb
+
+class User < ActiveRecord::Base 
+  attr_accessible :name, :email
+
+  validates :name,  presence: true, length: { maximum: 50 }
+  validates :email, presence: true
+end
+
+28) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+29) kuba@traktor:~/rails3/sample_app$ rails console --sandbox
+Loading development environment in sandbox (Rails 3.2.6)
+Any modifications you make will be rolled back on exit
+1.9.3p194 :001 > %w[foo bar baz]
+ => ["foo", "bar", "baz"] 
+1.9.3p194 :002 > addresses = %w[user@foo.COM THE_US-ER@foo.bar.org first.last@foo.jp]
+ => ["user@foo.COM", "THE_US-ER@foo.bar.org", "first.last@foo.jp"] 
+1.9.3p194 :003 > addresses.each do |address|
+1.9.3p194 :004 >     puts address
+1.9.3p194 :005?>   end
+user@foo.COM
+THE_US-ER@foo.bar.org
+first.last@foo.jp
+ => ["user@foo.COM", "THE_US-ER@foo.bar.org", "first.last@foo.jp"] 
+ 
+30) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+  .
+  .
+  .
+  describe "when email format is invalid" do
+    it "should be invalid" do
+      addresses = %w[user@foo,com user_at_foo.org example.user@foo.
+                     foo@bar_baz.com foo@bar+baz.com]
+      addresses.each do |invalid_address|
+        @user.email = invalid_address
+        @user.should_not be_valid
+      end      
+    end
+  end
+
+  describe "when email format is valid" do
+    it "should be valid" do
+      addresses = %w[user@foo.COM A_US-ER@f.b.org frst.lst@foo.jp a+b@baz.cn]
+      addresses.each do |valid_address|
+        @user.email = valid_address
+        @user.should be_valid
+      end      
+    end
+  end
+end
+
+31) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  attr_accessible :name, :email
+
+  validates :name,  presence: true, length: { maximum: 50 }
+  VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
+  validates :email, presence: true, format: { with: VALID_EMAIL_REGEX }
+end
+
+32) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+  .
+  .
+  .
+  describe "when email address is already taken" do
+    before do
+      user_with_same_email = @user.dup
+      user_with_same_email.save
+    end
+
+    it { should_not be_valid }
+  end
+end
+
+33) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  validates :email, presence: true, format: { with: VALID_EMAIL_REGEX },
+                    uniqueness: true
+end
+
+34) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+  .
+  .
+  .
+  describe "when email address is already taken" do
+    before do
+      user_with_same_email = @user.dup
+      user_with_same_email.email = @user.email.upcase
+      user_with_same_email.save
+    end
+
+    it { should_not be_valid }
+  end
+end
+
+35) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  validates :email, presence: true, format: { with: VALID_EMAIL_REGEX },
+                    uniqueness: { case_sensitive: false }
+end
+
+36) kuba@traktor:~/rails3/sample_app$ rails generate migration add_index_to_users_email
+37) #db/migrate/20120727085622_add_index_to_users_email.rb
+
+class AddIndexToUsersEmail < ActiveRecord::Migration
+  def change
+    add_index :users, :email, unique: true
+  end
+end
+
+38) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:migrate
+39) #app/models/user.rb
+
+class User < ActiveRecord::Base 
+  attr_accessible :name, :email
+
+  before_save { |user| user.email = email.downcase }
+  .
+  .
+  .
+end
+
+40) #Gemfile
+
+source 'https://rubygems.org'
+
+gem 'rails', '3.2.7'
+gem "railties", ">= 3.2.6"
+gem 'bootstrap-sass', '2.0.0'
+gem 'bcrypt-ruby', '3.0.1'
+.
+.
+.
+
+41) kuba@traktor:~/rails3/sample_app$ bundle install --without production
+42) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+
+  subject { @user }
+
+  it { should respond_to(:name) }
+  it { should respond_to(:email) }
+  it { should respond_to(:password_digest) }
+  .
+  .
+  .
+end
+
+43) kuba@traktor:~/rails3/sample_app$ rails generate migration add_password_digest_to_users password_digest:string
+44) #db/migrate/20120727090708_add_password_digest_to_users.rb
+
+class AddPasswordDigestToUsers < ActiveRecord::Migration
+  def change
+    add_column :users, :password_digest, :string
+  end
+end
+
+45) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:migrate
+46) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+47) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+48) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com", 
+                     password: "foobar", password_confirmation: "foobar")
+  end
+
+  subject { @user }
+
+  it { should respond_to(:name) }
+  it { should respond_to(:email) }
+  it { should respond_to(:password_digest) }
+  it { should respond_to(:password) }
+  it { should respond_to(:password_confirmation) }
+
+  it { should be_valid }
+  .
+  .
+  .
+  describe "when password is not present" do
+    before { @user.password = @user.password_confirmation = " " }
+    it { should_not be_valid }
+  end
+
+  describe "when password doesn't match confirmation" do
+    before { @user.password_confirmation = "mismatch" }
+    it { should_not be_valid }
+  end
+
+  describe "when password confirmation is nil" do
+    before { @user.password_confirmation = nil }
+    it { should_not be_valid }
+  end
+end
+
+49) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com", 
+                     password: "foobar", password_confirmation: "foobar")
+  end
+
+  subject { @user }
+  .
+  .
+  .
+  it { should respond_to(:authenticate) }
+  .
+  .
+  .
+  describe "with a password that's too short" do
+    before { @user.password = @user.password_confirmation = "a" * 5 }
+    it { should be_invalid }
+  end
+
+  describe "return value of authenticate method" do
+    before { @user.save }
+    let(:found_user) { User.find_by_email(@user.email) }
+
+    describe "with valid password" do
+      it { should == found_user.authenticate(@user.password) }
+    end
+
+    describe "with invalid password" do
+      let(:user_for_invalid_password) { found_user.authenticate("invalid") }
+
+      it { should_not == user_for_invalid_password }
+      specify { user_for_invalid_password.should be_false }
+    end
+  end
+end
+
+50) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  attr_accessible :name, :email, :password, :password_confirmation
+  has_secure_password
+
+  before_save { |user| user.email = email.downcase }
+
+  validates :name, presence: true, length: { maximum: 50 }
+  VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
+  validates :email, presence:   true,
+                    format:     { with: VALID_EMAIL_REGEX },
+                    uniqueness: { case_sensitive: false }
+  validates :password, presence: true, length: { minimum: 6 }
+  validates :password_confirmation, presence: true
+end
+
+51) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+52) kuba@traktor:~/rails3/sample_app$ rails console
+Loading development environment (Rails 3.2.6)
+1.9.3p194 :001 > User.create(name: "slunzok", email: "slunzok@gmail.com", password: "foobar", password_confirmation: "foobar")
+   (0.2ms)  begin transaction
+  User Exists (0.4ms)  SELECT 1 AS one FROM "users" WHERE LOWER("users"."email") = LOWER('slunzok@gmail.com') LIMIT 1
+Binary data inserted for `string` type on column `password_digest`
+  SQL (16.8ms)  INSERT INTO "users" ("created_at", "email", "name", "password_digest", "updated_at") VALUES (?, ?, ?, ?, ?)  [["created_at", Fri, 27 Jul 2012 09:36:42 UTC +00:00], ["email", "slunzok@gmail.com"], ["name", "slunzok"], ["password_digest", "$2a$10$oJd7PtgkatDd9xFS9dEN8OYkoPQlml9Z5B2IvtvSXnth8sIY4qd8C"], ["updated_at", Fri, 27 Jul 2012 09:36:42 UTC +00:00]]
+   (23.5ms)  commit transaction
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 09:36:42", updated_at: "2012-07-27 09:36:42", password_digest: "$2a$10$oJd7PtgkatDd9xFS9dEN8OYkoPQlml9Z5B2IvtvSXnth...">
+1.9.3p194 :002 > user = User.find_by_email("slunzok@gmail.com")
+  User Load (0.9ms)  SELECT "users".* FROM "users" WHERE "users"."email" = 'slunzok@gmail.com' LIMIT 1
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 09:36:42", updated_at: "2012-07-27 09:36:42", password_digest: "$2a$10$oJd7PtgkatDd9xFS9dEN8OYkoPQlml9Z5B2IvtvSXnth..."> 
+1.9.3p194 :003 > user.password_
+user.password_confirmation             user.password_digest_before_type_cast
+user.password_confirmation=            user.password_digest_change
+user.password_digest                   user.password_digest_changed?
+user.password_digest=                  user.password_digest_was
+user.password_digest?                  user.password_digest_will_change!
+1.9.3p194 :003 > user.password_
+user.password_confirmation             user.password_digest_before_type_cast
+user.password_confirmation=            user.password_digest_change
+user.password_digest                   user.password_digest_changed?
+user.password_digest=                  user.password_digest_was
+user.password_digest?                  user.password_digest_will_change!
+1.9.3p194 :003 > user.password_digest
+ => "$2a$10$oJd7PtgkatDd9xFS9dEN8OYkoPQlml9Z5B2IvtvSXnth8sIY4qd8C"
+1.9.3p194 :004 > user.authenticate("invalid")
+ => false 
+1.9.3p194 :005 > user.authenticate("foobar")
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 09:36:42", updated_at: "2012-07-27 09:36:42", password_digest: "$2a$10$oJd7PtgkatDd9xFS9dEN8OYkoPQlml9Z5B2IvtvSXnth...">
+
+53) kuba@traktor:~/rails3/sample_app$ git status
+# On branch modeling-users
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	app/models/user.rb
+#	db/migrate/
+#	db/schema.rb
+#	spec/models/
+no changes added to commit (use "git add" and/or "git commit -a")
+
+54) kuba@traktor:~/rails3/sample_app$ git add .
+55) kuba@traktor:~/rails3/sample_app$ git status
+# On branch modeling-users
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#	new file:   app/models/user.rb
+#	new file:   db/migrate/20120727075952_create_users.rb
+#	new file:   db/migrate/20120727085622_add_index_to_users_email.rb
+#	new file:   db/migrate/20120727090708_add_password_digest_to_users.rb
+#	new file:   db/schema.rb
+#	new file:   spec/models/user_spec.rb
+
+56) kuba@traktor:~/rails3/sample_app$ git commit -m "Make a basic User model (including secure passwords)"
+57) kuba@traktor:~/rails3/sample_app$ git checkout master
+58) kuba@traktor:~/rails3/sample_app$ git merge modeling-users
+59) kuba@traktor:~/rails3/sample_app$ git push

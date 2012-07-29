@@ -1,0 +1,219 @@
+Rozdzial 1 (v 3.2.6)
+
+1) kuba@traktor:~/rails3$ rails new first_app
+2) #Gemfile
+
+source 'https://rubygems.org'
+
+gem 'rails', '3.2.6'
+
+group :development do
+  gem 'sqlite3', '1.3.5'
+end
+
+group :assets do
+  gem 'sass-rails', '3.2.4'
+  #gem 'coffee-rails', '3.2.2'
+  #gem 'uglifier', '1.2.3'
+end
+
+gem 'jquery-rails', '2.0.0'
+
+3) kuba@traktor:~/rails3$ cd first_app/
+4) kuba@traktor:~/rails3/first_app$ bundle install
+
+5) kuba@traktor:~/rails3/first_app$ git config --global user.name "slunzok"
+6) kuba@traktor:~/rails3/first_app$ git config --global user.email slunzok@gmail.com
+7) kuba@traktor:~/rails3/first_app$ git config --global alias.co checkout
+8) kuba@traktor:~/rails3/first_app$ git init
+Initialized empty Git repository in .git/
+9) kuba@traktor:~/rails3/first_app$ git add .
+10) kuba@traktor:~/rails3/first_app$ git status
+11) kuba@traktor:~/rails3/first_app$ git commit -m "Initial commit"
+12) kuba@traktor:~/rails3/first_app$ git log
+commit 7375aa2937eb5fe7e323158b150c914323973e68
+Author: slunzok <slunzok@gmail.com>
+Date:   Sun Jul 22 16:23:20 2012 +0200
+
+    Initial commit
+13) kuba@traktor:~/rails3/first_app$ ls app/controllers/
+application_controller.rb
+14) kuba@traktor:~/rails3/first_app$ rm -rf app/controllers/
+15) kuba@traktor:~/rails3/first_app$ ls app/controllers/
+ls: cannot access app/controllers/: No such file or directory
+16) kuba@traktor:~/rails3/first_app$ git status
+# On branch master
+# Changed but not updated:
+#   (use "git add/rm <file>..." to update what will be committed)
+#
+#	deleted:    app/controllers/application_controller.rb
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+17) kuba@traktor:~/rails3/first_app$ git checkout -f 
+18) kuba@traktor:~/rails3/first_app$ git status
+# On branch master
+nothing to commit (working directory clean)
+19) kuba@traktor:~/rails3/first_app$ ls app/controllers/
+application_controller.rb
+
+20) https://github.com/new
+21) kuba@traktor:~/rails3/first_app$ cd ~/.ssh
+22) kuba@traktor:~/.ssh$ ls
+known_hosts
+23) kuba@traktor:~/.ssh$ ssh-keygen -t rsa -C "slunzok@gmail.com"
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/kuba/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/kuba/.ssh/id_rsa.
+Your public key has been saved in /home/kuba/.ssh/id_rsa.pub.
+The key fingerprint is:
+99:cd:ef:1d:3d:c0:c6:87:c5:67:47:cb:e8:5e:1a:b8 slunzok@gmail.com
+24) Na stronie: Account Settings -> SSH Public Keys ->  Add another public key (https://github.com/account/ssh) dodac nalezy swoj klucz (id_rsa.pub)
+25) kuba@traktor:~/.ssh$ ssh -T git@github.com
+Hi slunzok! You've successfully authenticated, but GitHub does not provide shell access.
+26) kuba@traktor:~/rails3/first_app$ git remote add origin git@github.com:slunzok/first_app.git
+27) kuba@traktor:~/rails3/first_app$ git push origin master
+
+28) kuba@traktor:~/rails3/first_app$ git checkout -b modyfiy-README
+Switched to a new branch "modyfiy-README"
+29) kuba@traktor:~/rails3/first_app$ git branch
+  master
+* modyfiy-README
+30) kuba@traktor:~/rails3/first_app$ git mv README.rdoc README.md
+31) kuba@traktor:~/rails3/first_app$ git status
+# On branch modyfiy-README
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	renamed:    README.rdoc -> README.md
+#
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#	modified:   README.md
+#
+32) kuba@traktor:~/rails3/first_app$ git commit -a -m "Improve the README file"
+Created commit 794375f: Improve the README file
+ 2 files changed, 3 insertions(+), 261 deletions(-)
+ create mode 100644 README.md
+ delete mode 100644 README.rdoc
+33) kuba@traktor:~/rails3/first_app$ git checkout master
+Switched to branch "master"
+34) kuba@traktor:~/rails3/first_app$ git merge modyfiy-README 
+Updating 7375aa2..794375f
+Fast forward
+ README.md   |    3 +
+ README.rdoc |  261 -----------------------------------------------------------
+ 2 files changed, 3 insertions(+), 261 deletions(-)
+ create mode 100644 README.md
+ delete mode 100644 README.rdoc
+35) kuba@traktor:~/rails3/first_app$ git branch -d modyfiy-README 
+Deleted branch modyfiy-README.
+36) kuba@traktor:~/rails3/first_app$ git push
+Counting objects: 4, done.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 354 bytes, done.
+Total 3 (delta 1), reused 0 (delta 0)
+To git@github.com:slunzok/first_app.git
+   7375aa2..794375f  master -> master
+   
+37) http://api.heroku.com/signup
+38) kuba@traktor:~/rails3/first_app$ gem install heroku
+39) kuba@traktor:~/rails3/first_app$ heroku keys:add
+Enter your Heroku credentials.
+Email: slunzok@gmail.com
+Password (typing will be hidden): 
+Found existing public key: /home/kuba/.ssh/id_rsa.pub
+Uploading SSH public key /home/kuba/.ssh/id_rsa.pub... done
+40) kuba@traktor:~/rails3/first_app$ heroku create --stack cedar
+Creating whispering-sands-8944... done, stack is cedar
+http://whispering-sands-8944.herokuapp.com/ | git@heroku.com:whispering-sands-8944.git
+Git remote heroku added
+41) kuba@traktor:~/rails3/first_app$ git push heroku master
+The authenticity of host 'heroku.com (50.19.85.156)' can't be established.
+RSA key fingerprint is 8b:48:5e:67:0e:c9:16:47:32:f2:87:0c:1f:c8:60:ad.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'heroku.com,50.19.85.156' (RSA) to the list of known hosts.
+Counting objects: 66, done.
+Compressing objects: 100% (52/52), done.
+Writing objects: 100% (66/66), 25.97 KiB, done.
+Total 66 (delta 3), reused 0 (delta 0)
+
+-----> Heroku receiving push
+-----> Ruby/Rails app detected
+-----> Installing dependencies using Bundler version 1.2.0.pre
+       Running: bundle install --without development:test --path vendor/bundle --binstubs bin/ --deployment
+       Fetching gem metadata from https://rubygems.org/.......
+       Installing rake (0.9.2.2)
+       Installing i18n (0.6.0)
+       Installing multi_json (1.3.6)
+       Installing activesupport (3.2.6)
+       Installing builder (3.0.0)
+       Installing activemodel (3.2.6)
+       Installing erubis (2.7.0)
+       Installing journey (1.0.4)
+       Installing rack (1.4.1)
+       Installing rack-cache (1.2)
+       Installing rack-test (0.6.1)
+       Installing hike (1.2.1)
+       Installing tilt (1.3.3)
+       Installing sprockets (2.1.3)
+       Installing actionpack (3.2.6)
+       Installing mime-types (1.19)
+       Installing polyglot (0.3.3)
+       Installing treetop (1.4.10)
+       Installing mail (2.4.4)
+       Installing actionmailer (3.2.6)
+       Installing arel (3.0.2)
+       Installing tzinfo (0.3.33)
+       Installing activerecord (3.2.6)
+       Installing activeresource (3.2.6)
+       Installing rack-ssl (1.3.2)
+       Installing json (1.7.3) with native extensions
+       Installing rdoc (3.12)
+       Installing thor (0.15.4)
+       Installing railties (3.2.6)
+       Installing jquery-rails (2.0.0)
+       Using bundler (1.2.0.pre)
+       Installing rails (3.2.6)
+       Installing sass (3.1.20)
+       Installing sass-rails (3.2.4)
+       Your bundle is complete! It was installed into ./vendor/bundle
+       Post-install message from rdoc:
+       Depending on your version of ruby, you may need to install ruby rdoc/ri data:
+       <= 1.8.6 : unsupported
+       = 1.8.7 : gem install rdoc-data; rdoc-data --install
+       = 1.9.1 : gem install rdoc-data; rdoc-data --install
+       >= 1.9.2 : nothing to do! Yay!
+       Cleaning up the bundler cache.
+-----> Writing config/database.yml to read from DATABASE_URL
+-----> Preparing app for Rails asset pipeline
+       Running: rake assets:precompile
+       rake aborted!
+       no such file to load -- uglifier
+       (in /tmp/build_ogxr8rx9x1ne/app/assets/javascripts/application.js)
+       Tasks: TOP => assets:precompile:primary
+       (See full trace by running task with --trace)
+       Precompiling assets failed, enabling runtime asset compilation
+       Injecting rails31_enable_runtime_asset_compilation
+       Please see this article for troubleshooting help:
+       http://devcenter.heroku.com/articles/rails31_heroku_cedar#troubleshooting
+-----> Rails plugin injection
+       Injecting rails_log_stdout
+       Injecting rails3_serve_static_assets
+-----> Discovering process types
+       Procfile declares types      -> (none)
+       Default types for Ruby/Rails -> console, rake, web, worker
+-----> Compiled slug size is 6.2MB
+-----> Launching... done, v4
+       http://whispering-sands-8944.herokuapp.com deployed to Heroku
+
+To git@heroku.com:whispering-sands-8944.git
+ * [new branch]      master -> master
+42) kuba@traktor:~/rails3/first_app$ heroku open
+Opening http://whispering-sands-8944.herokuapp.com/
+
+
+
+

@@ -1,0 +1,1140 @@
+Rozdzial 11 (v 3.2.7)
+
+1) kuba@traktor:~$ cd rails3/sample_app/
+2) kuba@traktor:~/rails3/sample_app$ git checkout -b following-users
+3) kuba@traktor:~/rails3/sample_app$ rails generate model Relationship follower_id:integer followed_id:integer
+4) #db/migrate/20120729115855_create_relationships.rb
+
+class CreateRelationships < ActiveRecord::Migration
+  def change
+    create_table :relationships do |t|
+      t.integer :follower_id
+      t.integer :followed_id
+
+      t.timestamps
+    end
+
+    add_index :relationships, :follower_id
+    add_index :relationships, :followed_id
+    add_index :relationships, [:follower_id, :followed_id], unique: true
+  end
+end
+
+5) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:migrate
+6) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+7) #spec/models/relationship_spec.rb
+
+require 'spec_helper'
+
+describe Relationship do
+
+  let(:follower) { FactoryGirl.create(:user) }
+  let(:followed) { FactoryGirl.create(:user) }
+  let(:relationship) { follower.relationships.build(followed_id: followed.id) }
+
+  subject { relationship }
+
+  it { should be_valid }
+
+  describe "accessible attributes" do
+    it "should not allow access to follower_id" do
+      expect do
+        Relationship.new(follower_id: follower.id)
+      end.should raise_error(ActiveModel::MassAssignmentSecurity::Error)
+    end    
+  end
+end
+
+8) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:feed) }
+  it { should respond_to(:relationships) }
+  .
+  .
+  .
+end
+
+9) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  has_many :microposts, dependent: :destroy
+  has_many :relationships, foreign_key: "follower_id", dependent: :destroy
+  .
+  .
+  .
+end
+
+10) #spec/models/relationship_spec.rb
+
+describe Relationship do
+  .
+  .
+  .
+  describe "follower methods" do    
+    it { should respond_to(:follower) }
+    it { should respond_to(:followed) }
+    its(:follower) { should == follower }
+    its(:followed) { should == followed }
+  end
+end
+
+11) #app/models/relationship.rb
+
+class Relationship < ActiveRecord::Base
+  attr_accessible :followed_id
+
+  belongs_to :follower, class_name: "User"
+  belongs_to :followed, class_name: "User"
+end
+
+12) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/relationship_spec.rb (pass)
+13) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb  (pass)
+
+14) #spec/models/relationship_spec.rb
+
+describe Relationship do
+  .
+  .
+  .
+  describe "when followed id is not present" do
+    before { relationship.followed_id = nil }
+    it { should_not be_valid }
+  end
+
+  describe "when follower id is not present" do
+    before { relationship.follower_id = nil }
+    it { should_not be_valid }
+  end
+end
+
+15) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/relationship_spec.rb (fail)
+16) #app/models/relationship.rb
+
+class Relationship < ActiveRecord::Base
+  attr_accessible :followed_id
+
+  belongs_to :follower, class_name: "User"
+  belongs_to :followed, class_name: "User"
+
+  validates :follower_id, presence: true
+  validates :followed_id, presence: true
+end
+
+17) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/relationship_spec.rb (pass)
+
+18) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:relationships) }
+  it { should respond_to(:followed_users) }
+  .
+  .
+  .
+end
+
+19) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  has_many :microposts, dependent: :destroy
+  has_many :relationships, foreign_key: "follower_id", dependent: :destroy
+  has_many :followed_users, through: :relationships, source: :followed
+  .
+  .
+  .
+end
+
+20) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:followed_users) }  
+  it { should respond_to(:following?) }
+  it { should respond_to(:follow!) }
+  .
+  .
+  .
+  describe "following" do
+    let(:other_user) { FactoryGirl.create(:user) }    
+    before do
+      @user.save
+      @user.follow!(other_user)
+    end
+
+    it { should be_following(other_user) }
+    its(:followed_users) { should include(other_user) }
+  end
+end
+
+21) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  def feed
+    .
+    .
+    .
+  end
+
+  def following?(other_user)
+    relationships.find_by_followed_id(other_user.id)
+  end
+
+  def follow!(other_user)
+    relationships.create!(followed_id: other_user.id)
+  end
+  .
+  .
+  .
+end
+
+22) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:follow!) }
+  it { should respond_to(:unfollow!) }
+  .
+  .
+  .
+  describe "following" do
+    .
+    .
+    .
+    describe "and unfollowing" do
+      before { @user.unfollow!(other_user) }
+
+      it { should_not be_following(other_user) }
+      its(:followed_users) { should_not include(other_user) }
+    end
+  end
+end
+
+23) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  def following?(other_user)
+    relationships.find_by_followed_id(other_user.id)
+  end
+
+  def follow!(other_user)
+    relationships.create!(followed_id: other_user.id)
+  end
+
+  def unfollow!(other_user)
+    relationships.find_by_followed_id(other_user.id).destroy
+  end
+  .
+  .
+  .
+end
+
+24) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+
+25) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:relationships) }
+  it { should respond_to(:followed_users) }
+  it { should respond_to(:reverse_relationships) }
+  it { should respond_to(:followers) }
+  .
+  .
+  .
+
+  describe "following" do
+    .
+    .
+    .
+    it { should be_following(other_user) }
+    its(:followed_users) { should include(other_user) }
+
+    describe "followed user" do
+      subject { other_user }
+      its(:followers) { should include(@user) }
+    end
+    .
+    .
+    .
+  end
+end
+
+26) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  has_many :reverse_relationships, foreign_key: "followed_id",
+                                   class_name:  "Relationship",
+                                   dependent:   :destroy
+  has_many :followers, through: :reverse_relationships, source: :follower
+  .
+  .
+  .
+end
+
+27) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+
+28) #lib/tasks/sample_data.rake
+
+namespace :db do
+  desc "Fill database with sample data"
+  task populate: :environment do
+    make_users
+    make_microposts
+    make_relationships
+  end
+end
+
+def make_users
+  admin = User.create!(name:     "Example User",
+                       email:    "example@railstutorial.org",
+                       password: "foobar",
+                       password_confirmation: "foobar")
+  admin.toggle!(:admin)
+  99.times do |n|
+    name  = Faker::Name.name
+    email = "example-#{n+1}@railstutorial.org"
+    password  = "password"
+    User.create!(name:     name,
+                 email:    email,
+                 password: password,
+                 password_confirmation: password)
+  end
+end
+
+def make_microposts
+  users = User.all(limit: 6)
+  50.times do
+    content = Faker::Lorem.sentence(5)
+    users.each { |user| user.microposts.create!(content: content) }
+  end
+end
+
+def make_relationships
+  users = User.all
+  user  = users.first
+  followed_users = users[2..50]
+  followers      = users[3..40]
+  followed_users.each { |followed| user.follow!(followed) }
+  followers.each      { |follower| follower.follow!(user) }
+end
+
+29) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:reset
+30) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:populate
+31) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+32) #config/routes.rb
+
+SampleApp::Application.routes.draw do
+  resources :users do
+    member do
+      get :following, :followers
+    end
+  end
+  .
+  .
+  .
+end
+
+33) #spec/requests/static_pages_spec.rb
+
+require 'spec_helper'
+
+describe "StaticPages" do
+  .
+  .
+  .
+  describe "Home page" do
+    .
+    .
+    .
+    describe "for signed-in users" do
+      let(:user) { FactoryGirl.create(:user) }
+      before do
+        FactoryGirl.create(:micropost, user: user, content: "Lorem")
+        FactoryGirl.create(:micropost, user: user, content: "Ipsum")
+        sign_in user
+        visit root_path
+      end
+
+      it "should render the user's feed" do
+        user.feed.each do |item|
+          page.should have_selector("li##{item.id}", text: item.content)
+        end
+      end
+
+      describe "follower/following counts" do
+        let(:other_user) { FactoryGirl.create(:user) }
+        before do
+          other_user.follow!(user)
+          visit root_path
+        end
+
+        it { should have_link("0 following", href: following_user_path(user)) }
+        it { should have_link("1 followers", href: followers_user_path(user)) }
+      end
+    end
+  end
+  .
+  .
+  .
+end
+
+34) kuba@traktor:~/rails3/sample_app$ touch app/views/shared/_stats.html.erb
+35) #app/views/shared/_stats.html.erb
+
+<% @user ||= current_user %>
+<div class="stats">
+  <a href="<%= following_user_path(@user) %>">
+    <strong id="following" class="stat">
+      <%= @user.followed_users.count %>
+    </strong>
+    following
+  </a>
+  <a href="<%= followers_user_path(@user) %>">
+    <strong id="followers" class="stat">
+      <%= @user.followers.count %>
+    </strong>
+    followers
+  </a>
+</div>
+
+36) #app/views/static_pages/home.html.erb
+
+<% if signed_in? %>
+      .
+      .
+      .
+      <section>
+        <%= render 'shared/user_info' %>
+      </section>
+      <section>
+        <%= render 'shared/stats' %>
+      </section>
+      <section>
+        <%= render 'shared/micropost_form' %>
+      </section>
+      .
+      .
+      .
+<% else %>
+  .
+  .
+  .
+<% end %>
+
+37) #app/assets/stylesheets/custom.css.scss
+
+.
+.
+.
+
+/* sidebar */
+.
+.
+.
+.stats {
+  overflow: auto;
+  a {
+    float: left;
+    padding: 0 10px;
+    border-left: 1px solid $grayLighter;
+    color: gray;
+    &:first-child {
+      padding-left: 0;
+      border: 0;
+    }
+    &:hover {
+      text-decoration: none;
+      color: $blue;
+    }
+  }
+  strong {
+    display: block;
+  }
+}
+
+.user_avatars {
+  overflow: auto;
+  margin-top: 10px;
+  .gravatar {
+    margin: 1px 1px;
+  }
+}
+.
+.
+.
+
+38) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/static_pages_spec.rb (pass)
+
+39) kuba@traktor:~/rails3/sample_app$ touch app/views/users/_follow_form.html.erb
+40) #app/views/users/_follow_form.html.erb
+
+<% unless current_user?(@user) %>
+  <div id="follow_form">
+  <% if current_user.following?(@user) %>
+    <%= render 'unfollow' %>
+  <% else %>
+    <%= render 'follow' %>
+  <% end %>
+  </div>
+<% end %>
+
+41) #config/routes.rb
+
+SampleApp::Application.routes.draw do
+  .
+  .
+  .
+  resources :sessions,      only: [:new, :create, :destroy]
+  resources :microposts,    only: [:create, :destroy]
+  resources :relationships, only: [:create, :destroy]
+  .
+  .
+  .
+end
+
+42) kuba@traktor:~/rails3/sample_app$ touch app/views/users/_follow.html.erb
+43) #app/views/users/_follow.html.erb
+
+<%= form_for(current_user.relationships.build(followed_id: @user.id)) do |f| %>
+  <div><%= f.hidden_field :followed_id %></div>
+  <%= f.submit "Follow", class: "btn btn-large btn-primary" %>
+<% end %>
+
+44) kuba@traktor:~/rails3/sample_app$ touch app/views/users/_unfollow.html.erb
+45) #app/views/users/_unfollow.html.erb
+
+<%= form_for(current_user.relationships.find_by_followed_id(@user),
+             html: { method: :delete }) do |f| %>
+  <%= f.submit "Unfollow", class: "btn btn-large" %>
+<% end %>
+
+46) #app/views/users/show.html.erb
+
+<% provide(:title, @user.name) %>
+<div class="row">
+  <aside class="span4">
+    <section>
+      <h1>
+        <%= gravatar_for @user %>
+        <%= @user.name %>
+      </h1>
+    </section>
+    <section>
+      <%= render 'shared/stats' %>
+    </section>
+  </aside>
+  <div class="span8">
+    <%= render 'follow_form' if signed_in? %>
+    .
+    .
+    .       
+  </div>
+</div>
+
+47) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+  .
+  .
+  .
+  describe "authorization" do
+
+    describe "for non-signed-in users" do
+      let(:user) { FactoryGirl.create(:user) }
+
+      describe "in the Users controller" do
+        .
+        .
+        .
+        describe "visiting the following page" do
+          before { visit following_user_path(user) }
+          it { should have_selector('title', text: 'Sign in') }
+        end
+
+        describe "visiting the followers page" do
+          before { visit followers_user_path(user) }
+          it { should have_selector('title', text: 'Sign in') }
+        end
+      end
+      .
+      .
+      .
+    end
+    .
+    .
+    .
+  end
+  .
+  .
+  .
+end
+
+48) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+  .
+  .
+  .
+  describe "following/followers" do
+    let(:user) { FactoryGirl.create(:user) }
+    let(:other_user) { FactoryGirl.create(:user) }
+    before { user.follow!(other_user) }
+
+    describe "followed users" do
+      before do
+        sign_in user
+        visit following_user_path(user)
+      end
+
+      it { should have_selector('title', text: full_title('Following')) }
+      it { should have_selector('h3', text: 'Following') }
+      it { should have_link(other_user.name, href: user_path(other_user)) }
+    end
+
+    describe "followers" do
+      before do
+        sign_in other_user
+        visit followers_user_path(other_user)
+      end
+
+      it { should have_selector('title', text: full_title('Followers')) }
+      it { should have_selector('h3', text: 'Followers') }
+      it { should have_link(user.name, href: user_path(user)) }
+    end
+  end
+end
+
+49) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  before_filter :signed_in_user, 
+                only: [:index, :edit, :update, :destroy, :following, :followers]
+  .
+  .
+  .
+  def following
+    @title = "Following"
+    @user = User.find(params[:id])
+    @users = @user.followed_users.paginate(page: params[:page])
+    render 'show_follow'
+  end
+
+  def followers
+    @title = "Followers"
+    @user = User.find(params[:id])
+    @users = @user.followers.paginate(page: params[:page])
+    render 'show_follow'
+  end
+  .
+  .
+  .
+end
+
+50) kuba@traktor:~/rails3/sample_app$ touch app/views/users/show_follow.html.erb
+51) #app/views/users/show_follow.html.erb
+
+<% provide(:title, @title) %>
+<div class="row">
+  <aside class="span4">
+    <section>
+      <%= gravatar_for @user %>
+      <h1><%= @user.name %></h1>
+      <span><%= link_to "view my profile", @user %></span>
+      <span><b>Microposts:</b> <%= @user.microposts.count %></span>
+    </section>
+    <section>
+      <%= render 'shared/stats' %>
+      <% if @users.any? %>
+        <div class="user_avatars">
+          <% @users.each do |user| %>
+            <%= link_to gravatar_for(user), user %>
+          <% end %>
+        </div>
+      <% end %>
+    </section>
+  </aside>
+  <div class="span8">
+    <h3><%= @title %></h3>
+    <% if @users.any? %>
+      <ul class="users">
+        <%= render @users %>
+      </ul>
+      <%= will_paginate %>
+    <% end %>
+  </div>
+</div>
+
+52) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb (pass)
+53) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (pass)
+
+54) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+  .
+  .
+  .
+  describe "profile page" do
+    let(:user) { FactoryGirl.create(:user) }
+    .
+    .
+    .
+    describe "follow/unfollow buttons" do
+      let(:other_user) { FactoryGirl.create(:user) }
+      before { sign_in user }
+
+      describe "following a user" do
+        before { visit user_path(other_user) }
+
+        it "should increment the followed user count" do
+          expect do
+            click_button "Follow"
+          end.to change(user.followed_users, :count).by(1)
+        end
+
+        it "should increment the other user's followers count" do
+          expect do
+            click_button "Follow"
+          end.to change(other_user.followers, :count).by(1)
+        end
+
+        describe "toggling the button" do
+          before { click_button "Follow" }
+          it { should have_selector('input', value: 'Unfollow') }
+        end
+      end
+
+      describe "unfollowing a user" do
+        before do
+          user.follow!(other_user)
+          visit user_path(other_user)
+        end
+
+        it "should decrement the followed user count" do
+          expect do
+            click_button "Unfollow"
+          end.to change(user.followed_users, :count).by(-1)
+        end
+
+        it "should decrement the other user's followers count" do
+          expect do
+            click_button "Unfollow"
+          end.to change(other_user.followers, :count).by(-1)
+        end
+
+        describe "toggling the button" do
+          before { click_button "Unfollow" }
+          it { should have_selector('input', value: 'Follow') }
+        end
+      end
+    end
+  end
+  .
+  .
+  .
+end
+
+55) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+  .
+  .
+  .
+  describe "authorization" do
+
+    describe "for non-signed-in users" do
+      let(:user) { FactoryGirl.create(:user) }
+      .
+      .
+      .
+      describe "in the Relationships controller" do
+        describe "submitting to the create action" do
+          before { post relationships_path }
+          specify { response.should redirect_to(signin_path) }
+        end
+
+        describe "submitting to the destroy action" do
+          before { delete relationship_path(1) }
+          specify { response.should redirect_to(signin_path) }          
+        end
+      end
+      .
+      .
+      .
+    end
+  end
+end
+
+56) #app/controllers/relationships_controller.rb
+
+class RelationshipsController < ApplicationController
+  before_filter :signed_in_user
+
+  def create
+    @user = User.find(params[:relationship][:followed_id])
+    current_user.follow!(@user)
+    redirect_to @user
+  end
+
+  def destroy
+    @user = Relationship.find(params[:id]).followed
+    current_user.unfollow!(@user)
+    redirect_to @user
+  end
+end
+
+57) kuba@traktor:~/rails3/sample_app$ touch app/controllers/relationships_controller.rb
+58) #app/controllers/relationships_controller.rb
+
+class RelationshipsController < ApplicationController
+  before_filter :signed_in_user
+
+  def create
+    @user = User.find(params[:relationship][:followed_id])
+    current_user.follow!(@user)
+    redirect_to @user
+  end
+
+  def destroy
+    @user = Relationship.find(params[:id]).followed
+    current_user.unfollow!(@user)
+    redirect_to @user
+  end
+end
+
+59) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb (pass)
+60) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (pass)
+
+61) #app/views/users/_follow.html.erb
+
+<%= form_for(current_user.relationships.build(followed_id: @user.id),
+             remote: true) do |f| %>
+  <div><%= f.hidden_field :followed_id %></div>
+  <%= f.submit "Follow", class: "btn btn-large btn-primary" %>
+<% end %>
+
+62) #app/views/users/_unfollow.html.erb
+
+<%= form_for(current_user.relationships.find_by_followed_id(@user),
+             html: { method: :delete },
+             remote: true) do |f| %>
+  <%= f.submit "Unfollow", class: "btn btn-large" %>
+<% end %>
+
+63) kuba@traktor:~/rails3/sample_app$ mkdir spec/controllers
+64) kuba@traktor:~/rails3/sample_app$ touch spec/controllers/relationships_controller_spec.rb
+65) #spec/controllers/relationships_controller_spec.rb
+
+require 'spec_helper'
+
+describe RelationshipsController do
+
+  let(:user) { FactoryGirl.create(:user) }
+  let(:other_user) { FactoryGirl.create(:user) }
+
+  before { sign_in user }
+
+  describe "creating a relationship with Ajax" do
+
+    it "should increment the Relationship count" do
+      expect do
+        xhr :post, :create, relationship: { followed_id: other_user.id }
+      end.should change(Relationship, :count).by(1)
+    end
+
+    it "should respond with success" do
+      xhr :post, :create, relationship: { followed_id: other_user.id }
+      response.should be_success
+    end
+  end
+
+  describe "destroying a relationship with Ajax" do
+
+    before { user.follow!(other_user) }
+    let(:relationship) { user.relationships.find_by_followed_id(other_user) }
+
+    it "should decrement the Relationship count" do
+      expect do
+        xhr :delete, :destroy, id: relationship.id
+      end.should change(Relationship, :count).by(-1)
+    end
+
+    it "should respond with success" do
+      xhr :delete, :destroy, id: relationship.id
+      response.should be_success
+    end
+  end
+end
+
+66) #app/controllers/relationships_controller.rb
+
+class RelationshipsController < ApplicationController
+  before_filter :signed_in_user
+
+  def create
+    @user = User.find(params[:relationship][:followed_id])
+    current_user.follow!(@user)
+    respond_to do |format|
+      format.html { redirect_to @user }
+      format.js
+    end
+  end
+
+  def destroy
+    @user = Relationship.find(params[:id]).followed
+    current_user.unfollow!(@user)
+    respond_to do |format|
+      format.html { redirect_to @user }
+      format.js
+    end
+  end
+end
+
+67) kuba@traktor:~/rails3/sample_app$ mkdir app/views/relationships
+68) kuba@traktor:~/rails3/sample_app$ touch app/views/relationships/create.js.erb
+69) #app/views/relationships/create.js.erb
+
+$("#follow_form").html("<%= escape_javascript(render('users/unfollow')) %>")
+$("#followers").html('<%= @user.followers.count %>')
+
+70) kuba@traktor:~/rails3/sample_app$ touch app/views/relationships/destroy.js.erb
+71) #app/views/relationships/destroy.js.erb
+
+$("#follow_form").html("<%= escape_javascript(render('users/follow')) %>")
+$("#followers").html('<%= @user.followers.count %>')
+
+72) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/controllers/relationships_controller_spec.rb (pass)
+
+73) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  describe "micropost associations" do
+    before { @user.save }
+    let!(:older_micropost) do 
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
+    end
+    let!(:newer_micropost) do
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
+    end
+    .
+    .
+    .
+    describe "status" do
+      let(:unfollowed_post) do
+        FactoryGirl.create(:micropost, user: FactoryGirl.create(:user))
+      end
+      let(:followed_user) { FactoryGirl.create(:user) }
+
+      before do
+        @user.follow!(followed_user)
+        3.times { followed_user.microposts.create!(content: "Lorem ipsum") }
+      end
+
+      its(:feed) { should include(newer_micropost) }
+      its(:feed) { should include(older_micropost) }
+      its(:feed) { should_not include(unfollowed_post) }
+      its(:feed) do
+        followed_user.microposts.each do |micropost|
+          should include(micropost)
+        end
+      end
+    end
+  end
+end
+
+74) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  def feed
+    Micropost.from_users_followed_by(self)
+  end
+  .
+  .
+  .
+end
+
+75) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  .
+  .
+  .
+  def self.from_users_followed_by(user)
+    followed_user_ids = user.followed_user_ids
+    where("user_id IN (?) OR user_id = ?", followed_user_ids, user)
+  end
+end
+
+76) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+
+77) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  .
+  .
+  .
+  # Returns microposts from the users being followed by the given user.
+  def self.from_users_followed_by(user)
+    followed_user_ids = user.followed_user_ids
+    where("user_id IN (:followed_user_ids) OR user_id = :user_id",
+          followed_user_ids: followed_user_ids, user_id: user)
+  end
+end
+
+78) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  attr_accessible :content
+  belongs_to :user
+
+  validates :user_id, presence: true
+  validates :content, presence: true, length: { maximum: 140 }
+
+  default_scope order: 'microposts.created_at DESC'
+
+  def self.from_users_followed_by(user)
+    followed_user_ids = "SELECT followed_id FROM relationships
+                         WHERE follower_id = :user_id"
+    where("user_id IN (#{followed_user_ids}) OR user_id = :user_id", 
+          user_id: user.id)
+  end
+end
+
+79) #app/controllers/static_pages_controller.rb
+
+class StaticPagesController < ApplicationController
+
+  def home
+    if signed_in?
+      @micropost  = current_user.microposts.build
+      @feed_items = current_user.feed.paginate(page: params[:page])
+    end
+  end
+  .
+  .
+  .
+end
+
+80) kuba@traktor:~/rails3/sample_app$ git status
+# On branch following-users
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#	modified:   app/assets/stylesheets/custom.css.scss
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/models/micropost.rb
+#	modified:   app/models/user.rb
+#	modified:   app/views/static_pages/home.html.erb
+#	modified:   app/views/users/show.html.erb
+#	modified:   config/routes.rb
+#	modified:   db/schema.rb
+#	modified:   lib/tasks/sample_data.rake
+#	modified:   spec/models/user_spec.rb
+#	modified:   spec/requests/authentication_pages_spec.rb
+#	modified:   spec/requests/static_pages_spec.rb
+#	modified:   spec/requests/user_pages_spec.rb
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	app/controllers/relationships_controller.rb
+#	app/models/relationship.rb
+#	app/views/relationships/
+#	app/views/shared/_stats.html.erb
+#	app/views/users/_follow.html.erb
+#	app/views/users/_follow_form.html.erb
+#	app/views/users/_unfollow.html.erb
+#	app/views/users/show_follow.html.erb
+#	db/migrate/20120729115855_create_relationships.rb
+#	spec/controllers/
+#	spec/models/relationship_spec.rb
+no changes added to commit (use "git add" and/or "git commit -a")
+
+81) kuba@traktor:~/rails3/sample_app$ git add .
+82) kuba@traktor:~/rails3/sample_app$ git status
+# On branch following-users
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   app/assets/stylesheets/custom.css.scss
+#	new file:   app/controllers/relationships_controller.rb
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/models/micropost.rb
+#	new file:   app/models/relationship.rb
+#	modified:   app/models/user.rb
+#	new file:   app/views/relationships/create.js.erb
+#	new file:   app/views/relationships/destroy.js.erb
+#	new file:   app/views/shared/_stats.html.erb
+#	modified:   app/views/static_pages/home.html.erb
+#	new file:   app/views/users/_follow.html.erb
+#	new file:   app/views/users/_follow_form.html.erb
+#	new file:   app/views/users/_unfollow.html.erb
+#	modified:   app/views/users/show.html.erb
+#	new file:   app/views/users/show_follow.html.erb
+#	modified:   config/routes.rb
+#	new file:   db/migrate/20120729115855_create_relationships.rb
+#	modified:   db/schema.rb
+#	modified:   lib/tasks/sample_data.rake
+#	new file:   spec/controllers/relationships_controller_spec.rb
+#	new file:   spec/models/relationship_spec.rb
+#	modified:   spec/models/user_spec.rb
+#	modified:   spec/requests/authentication_pages_spec.rb
+#	modified:   spec/requests/static_pages_spec.rb
+#	modified:   spec/requests/user_pages_spec.rb
+
+83) kuba@traktor:~/rails3/sample_app$ git commit -m "Add user following"
+84) kuba@traktor:~/rails3/sample_app$ git checkout master
+85) kuba@traktor:~/rails3/sample_app$ git merge following-users
+86) kuba@traktor:~/rails3/sample_app$ git push

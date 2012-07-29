@@ -1,0 +1,1049 @@
+Rozdzial 10 (v 3.2.7)
+
+1) kuba@traktor:~$ cd rails3/sample_app/
+2) kuba@traktor:~/rails3/sample_app$ git checkout -b user-microposts
+3) kuba@traktor:~/rails3/sample_app$ rails generate model Micropost content:string user_id:integer
+4) #db/migrate/20120729075925_create_microposts.rb
+
+class CreateMicroposts < ActiveRecord::Migration
+  def change
+    create_table :microposts do |t|
+      t.string :content
+      t.integer :user_id
+
+      t.timestamps
+    end
+    add_index :microposts, [:user_id, :created_at]
+  end
+end
+
+5) #spec/models/micropost_spec.rb
+
+require 'spec_helper'
+
+describe Micropost do
+
+  let(:user) { FactoryGirl.create(:user) }
+  before do
+    # This code is wrong!
+    @micropost = Micropost.new(content: "Lorem ipsum", user_id: user.id)
+  end
+
+  subject { @micropost }
+
+  it { should respond_to(:content) }
+  it { should respond_to(:user_id) }
+end
+
+6) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:migrate
+7) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+8) #spec/models/micropost_spec.rb
+
+require 'spec_helper'
+
+describe Micropost do
+
+  let(:user) { FactoryGirl.create(:user) }
+  before do
+    # This code is wrong!
+    @micropost = Micropost.new(content: "Lorem ipsum", user_id: user.id)
+  end
+
+  subject { @micropost }
+
+  it { should respond_to(:content) }
+  it { should respond_to(:user_id) }
+
+  it { should be_valid }
+
+  describe "when user_id is not present" do
+    before { @micropost.user_id = nil }
+    it { should_not be_valid }
+  end
+end
+
+9) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  attr_accessible :content, :user_id  
+  validates :user_id, presence: true
+end
+
+10) #spec/models/micropost_spec.rb
+
+require 'spec_helper'
+
+describe Micropost do
+
+  let(:user) { FactoryGirl.create(:user) }
+  before { @micropost = user.microposts.build(content: "Lorem ipsum") }
+
+  subject { @micropost }
+  .
+  .
+  .
+  describe "accessible attributes" do
+    it "should not allow access to user_id" do
+      expect do
+        Micropost.new(user_id: user.id)
+      end.should raise_error(ActiveModel::MassAssignmentSecurity::Error)
+    end    
+  end
+end
+
+11) #config/application.rb
+
+.
+.
+.
+module SampleApp
+  class Application < Rails::Application
+    .
+    .
+    .
+    config.active_record.whitelist_attributes = true
+    .
+    .
+    .
+  end
+end
+
+12) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  attr_accessible :content
+
+  validates :user_id, presence: true
+end
+
+13) #spec/models/micropost_spec.rb
+
+require 'spec_helper'
+
+describe Micropost do
+
+  let(:user) { FactoryGirl.create(:user) }
+  before { @micropost = user.microposts.build(content: "Lorem ipsum") }
+
+  subject { @micropost }
+
+  it { should respond_to(:content) }
+  it { should respond_to(:user_id) }
+  it { should respond_to(:user) }
+  its(:user) { should == user }
+
+  it { should be_valid }
+
+  describe "accessible attributes" do
+    it "should not allow access to user_id" do
+      expect do
+        Micropost.new(user_id: user.id)
+      end.should raise_error(ActiveModel::MassAssignmentSecurity::Error)
+    end    
+  end
+
+  describe "when user_id is not present" do
+    before { @micropost.user_id = nil }
+    it { should_not be_valid }
+  end
+end
+
+14) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+
+  before do
+    @user = User.new(name: "Example User", email: "user@example.com", 
+                     password: "foobar", password_confirmation: "foobar")
+  end
+
+  subject { @user }
+  .
+  .
+  .
+  it { should respond_to(:authenticate) }
+  it { should respond_to(:microposts) }
+  .
+  .
+  .
+end
+
+15) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  attr_accessible :content
+  belongs_to :user
+
+  validates :user_id, presence: true  
+end
+
+16) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  attr_accessible :name, :email, :password, :password_confirmation
+  has_secure_password
+  has_many :microposts
+  .
+  .
+  .
+end
+
+17) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/micropost_spec.rb (pass)
+18) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+
+19) #spec/factories.rb
+
+FactoryGirl.define do
+  factory :user do
+    sequence(:name)  { |n| "Person #{n}" }
+    sequence(:email) { |n| "person_#{n}@example.com"}   
+    password "foobar"
+    password_confirmation "foobar"
+
+    factory :admin do
+      admin true
+    end
+  end
+
+  factory :micropost do
+    content "Lorem ipsum"
+    user
+  end
+end
+
+20) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  describe "micropost associations" do
+
+    before { @user.save }
+    let!(:older_micropost) do 
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
+    end
+    let!(:newer_micropost) do
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
+    end
+
+    it "should have the right microposts in the right order" do
+      @user.microposts.should == [newer_micropost, older_micropost]
+    end
+  end
+end
+
+21) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  .
+  .
+  .
+  default_scope order: 'microposts.created_at DESC'
+end
+
+22) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+
+23) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  describe "micropost associations" do
+
+    before { @user.save }
+    let!(:older_micropost) do 
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
+    end
+    let!(:newer_micropost) do
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
+    end
+    .
+    .
+    .
+    it "should destroy associated microposts" do
+      microposts = @user.microposts
+      @user.destroy
+      microposts.each do |micropost|
+        Micropost.find_by_id(micropost.id).should be_nil
+      end
+    end
+  end
+  .
+  .
+  .
+end
+
+24) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  attr_accessible :name, :email, :password, :password_confirmation
+  has_secure_password
+  has_many :microposts, dependent: :destroy
+  .
+  .
+  .
+end
+
+25) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/user_spec.rb (pass)
+
+26) #spec/models/micropost_spec.rb
+
+require 'spec_helper'
+
+describe Micropost do
+
+  let(:user) { FactoryGirl.create(:user) }
+  before { @micropost = user.microposts.build(content: "Lorem ipsum") }
+  .
+  .
+  .
+  describe "when user_id is not present" do
+    before { @micropost.user_id = nil }
+    it { should_not be_valid }
+  end
+
+  describe "with blank content" do
+    before { @micropost.content = " " }
+    it { should_not be_valid }
+  end
+
+  describe "with content that is too long" do
+    before { @micropost.content = "a" * 141 }
+    it { should_not be_valid }
+  end
+end
+
+27) #app/models/micropost.rb
+
+class Micropost < ActiveRecord::Base
+  attr_accessible :content
+
+  belongs_to :user
+
+  validates :content, presence: true, length: { maximum: 140 }
+  validates :user_id, presence: true
+
+  default_scope order: 'microposts.created_at DESC'
+end
+
+28) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/models/micropost_spec.rb  (pass)
+
+29) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+  .
+  .
+  .
+  describe "profile page" do
+    let(:user) { FactoryGirl.create(:user) }
+    let!(:m1) { FactoryGirl.create(:micropost, user: user, content: "Foo") }
+    let!(:m2) { FactoryGirl.create(:micropost, user: user, content: "Bar") }
+
+    before { visit user_path(user) }
+
+    it { should have_selector('h1',    text: user.name) }
+    it { should have_selector('title', text: user.name) }
+
+    describe "microposts" do
+      it { should have_content(m1.content) }
+      it { should have_content(m2.content) }
+      it { should have_content(user.microposts.count) }
+    end
+  end
+  .
+  .
+  .
+end
+
+30) #app/views/users/show.html.erb
+
+<% provide(:title, @user.name) %>
+<div class="row">
+  .
+  .
+  .
+  <aside>
+    .
+    .
+    .
+  </aside>
+  <div class="span8">
+    <% if @user.microposts.any? %>
+      <h3>Microposts (<%= @user.microposts.count %>)</h3>
+      <ol class="microposts">
+        <%= render @microposts %>
+      </ol>
+      <%= will_paginate @microposts %>
+    <% end %>
+  </div>
+</div>
+
+31) kuba@traktor:~/rails3/sample_app$ mkdir app/views/microposts
+32) kuba@traktor:~/rails3/sample_app$ touch app/views/microposts/_micropost.html.erb
+
+33) #app/views/microposts/_micropost.html.erb
+
+<li>
+  <span class="content"><%= micropost.content %></span>
+  <span class="timestamp">
+    Posted <%= time_ago_in_words(micropost.created_at) %> ago.
+  </span>
+</li>
+
+34) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  .
+  .
+  .
+  def show
+    @user = User.find(params[:id])
+    @microposts = @user.microposts.paginate(page: params[:page])
+  end
+end
+
+35) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (pass)
+
+36) #lib/tasks/sample_data.rake
+
+namespace :db do
+  desc "Fill database with sample data"
+  task populate: :environment do
+    .
+    .
+    .
+    users = User.all(limit: 6)
+    50.times do
+      content = Faker::Lorem.sentence(5)
+      users.each { |user| user.microposts.create!(content: content) }
+    end
+  end
+end
+
+37) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:reset
+38) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:populate
+39) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+40) #app/assets/stylesheets/custom.css.scss
+
+.
+.
+.
+
+/* microposts */
+
+.microposts {
+  list-style: none;
+  margin: 10px 0 0 0;
+
+  li {
+    padding: 10px 0;
+    border-top: 1px solid #e8e8e8;
+  }
+}
+.content {
+  display: block;
+}
+.timestamp {
+  color: $grayLight;
+}
+.gravatar {
+  float: left;
+  margin-right: 10px;
+}
+aside {
+  textarea {
+    height: 100px;
+    margin-bottom: 5px;
+  }
+}
+
+41) #config/routes.rb
+
+SampleApp::Application.routes.draw do
+  resources :users
+  resources :sessions,   only: [:new, :create, :destroy]
+  resources :microposts, only: [:create, :destroy]
+  .
+  .
+  .
+end
+
+42) #spec/requests/authentication_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Authentication" do
+  .
+  .
+  .
+  describe "authorization" do
+
+    describe "for non-signed-in users" do
+      let(:user) { FactoryGirl.create(:user) }
+      .
+      .
+      .
+      describe "in the Microposts controller" do
+
+        describe "submitting to the create action" do
+          before { post microposts_path }
+          specify { response.should redirect_to(signin_path) }
+        end
+
+        describe "submitting to the destroy action" do
+          before { delete micropost_path(FactoryGirl.create(:micropost)) }
+          specify { response.should redirect_to(signin_path) }
+        end
+      end
+      .
+      .
+      .
+    end
+  end
+end
+
+43) #app/helpers/sessions_helper.rb
+
+module SessionsHelper
+  .
+  .
+  .
+  def current_user?(user)
+    user == current_user
+  end
+
+  def signed_in_user
+    unless signed_in?
+      store_location
+      redirect_to signin_path, notice: "Please sign in."
+    end
+  end
+  .
+  .
+  .
+end
+
+44) #app/controllers/users_controller.rb (remove signed_in_user!)
+45) kuba@traktor:~/rails3/sample_app$ touch app/controllers/microposts_controller.rb
+46) #app/controllers/microposts_controller.rb
+
+class MicropostsController < ApplicationController
+  before_filter :signed_in_user
+
+  def create
+  end
+
+  def destroy
+  end
+end
+
+47) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/authentication_pages_spec.rb (pass)
+
+48) kuba@traktor:~/rails3/sample_app$ rails generate integration_test micropost_pages
+49) #spec/requests/micropost_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Micropost pages" do
+
+  subject { page }
+
+  let(:user) { FactoryGirl.create(:user) }
+  before { sign_in user }
+
+  describe "micropost creation" do
+    before { visit root_path }
+
+    describe "with invalid information" do
+
+      it "should not create a micropost" do
+        expect { click_button "Post" }.should_not change(Micropost, :count)
+      end
+
+      describe "error messages" do
+        before { click_button "Post" }
+        it { should have_content('error') } 
+      end
+    end
+
+    describe "with valid information" do
+
+      before { fill_in 'micropost_content', with: "Lorem ipsum" }
+      it "should create a micropost" do
+        expect { click_button "Post" }.should change(Micropost, :count).by(1)
+      end
+    end
+  end
+end
+
+50) #app/controllers/microposts_controller.rb
+
+class MicropostsController < ApplicationController
+  before_filter :signed_in_user
+
+  def create
+    @micropost = current_user.microposts.build(params[:micropost])
+    if @micropost.save
+      flash[:success] = "Micropost created!"
+      redirect_to root_path
+    else
+      render 'static_pages/home'
+    end
+  end
+
+  def destroy
+  end
+end
+
+51) #app/views/static_pages/home.html.erb
+
+<% if signed_in? %>
+  <div class="row">
+    <aside class="span4">
+      <section>
+        <%= render 'shared/user_info' %>
+      </section>
+      <section>
+        <%= render 'shared/micropost_form' %>
+      </section>
+    </aside>
+  </div>  
+<% else %>
+  <div class="center hero-unit">
+    <h1>Welcome to the Sample App</h1>
+
+    <h2>
+      This is the home page for the
+      <a href="http://railstutorial.org/">Ruby on Rails Tutorial</a>
+      sample application.
+    </h2>
+
+    <%= link_to "Sign up now!", signup_path, 
+                                class: "btn btn-large btn-primary" %>
+  </div>
+
+  <%= link_to image_tag("rails.png", alt: "Rails"), 'http://rubyonrails.org/' %>
+<% end %>
+
+52) kuba@traktor:~/rails3/sample_app$ touch app/views/shared/_user_info.html.erb
+53) #app/views/shared/_user_info.html.erb
+
+<a href="<%= user_path(current_user) %>">
+  <%= gravatar_for current_user %>
+</a>
+<h1>
+  <%= current_user.name %>
+</h1>
+<span>
+  <%= link_to "view my profile", current_user %>
+</span>
+<span>
+  <%= pluralize(current_user.microposts.count, "micropost") %>
+</span>
+
+54) kuba@traktor:~/rails3/sample_app$ touch app/views/shared/_micropost_form.html.erb
+55) #app/views/shared/_micropost_form.html.erb
+
+<%= form_for(@micropost) do |f| %>
+  <%= render 'shared/error_messages', object: f.object %>
+  <div class="field">
+    <%= f.text_area :content, placeholder: "Compose new micropost..." %>
+  </div>
+  <%= f.submit "Post", class: "btn btn-large btn-primary" %>
+<% end %>
+
+56) #app/controllers/static_pages_controller.rb
+
+class StaticPagesController < ApplicationController
+
+  def home
+    @micropost = current_user.microposts.build if signed_in?
+  end
+  .
+  .
+  .
+end
+
+57) #app/views/shared/_error_messages.html.erb
+
+<% if object.errors.any? %>
+  <div id="error_explanation">
+    <div class="alert alert-error">
+      The form contains <%= pluralize(object.errors.count, "error") %>.
+    </div>
+    <ul>
+    <% object.errors.full_messages.each do |msg| %>
+      <li>* <%= msg %></li>
+    <% end %>
+    </ul>
+  </div>
+<% end %>
+
+58) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/micropost_pages_spec.rb (pass)
+59) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (fail)
+60) #app/views/users/new.html.erb
+
+<% provide(:title, 'Sign up') %>
+<h1>Sign up</h1>
+
+<div class="row">
+  <div class="span6 offset3">
+    <%= form_for(@user) do |f| %>
+      <%= render 'shared/error_messages', object: f.object %>
+      .
+      .
+      .
+    <% end %>
+  </div>
+</div>
+
+61) #app/views/users/edit.html.erb
+
+<% provide(:title, "Edit user") %> 
+<h1>Update your profile</h1>
+
+<div class="row">
+  <div class="span6 offset3">
+    <%= form_for(@user) do |f| %>
+      <%= render 'shared/error_messages', object: f.object %>
+      .
+      .
+      .
+    <% end %>
+
+    <%= gravatar_for(@user) %>
+    <a href="http://gravatar.com/emails">change</a>
+  </div>
+</div>
+
+62) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (pass)
+
+63) #spec/models/user_spec.rb
+
+require 'spec_helper'
+
+describe User do
+  .
+  .
+  .
+  it { should respond_to(:microposts) }
+  it { should respond_to(:feed) }
+  .
+  .
+  .
+  describe "micropost associations" do
+
+    before { @user.save }
+    let!(:older_micropost) do 
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
+    end
+    let!(:newer_micropost) do
+      FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
+    end
+    .
+    .
+    .
+    describe "status" do
+      let(:unfollowed_post) do
+        FactoryGirl.create(:micropost, user: FactoryGirl.create(:user))
+      end
+
+      its(:feed) { should include(newer_micropost) }
+      its(:feed) { should include(older_micropost) }
+      its(:feed) { should_not include(unfollowed_post) }
+    end
+  end
+end
+
+64) #app/models/user.rb
+
+class User < ActiveRecord::Base
+  .
+  .
+  .
+  def feed
+    # This is preliminary. See "Following users" for the full implementation.
+    Micropost.where("user_id = ?", id)
+  end
+  .
+  .
+  .
+end
+
+65) #spec/requests/static_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Static pages" do
+
+  subject { page }
+
+  describe "Home page" do
+    .
+    .
+    .
+    describe "for signed-in users" do
+      let(:user) { FactoryGirl.create(:user) }
+      before do
+        FactoryGirl.create(:micropost, user: user, content: "Lorem ipsum")
+        FactoryGirl.create(:micropost, user: user, content: "Dolor sit amet")
+        sign_in user
+        visit root_path
+      end
+
+      it "should render the user's feed" do
+        user.feed.each do |item|
+          page.should have_selector("li##{item.id}", text: item.content)
+        end
+      end
+    end
+  end
+  .
+  .
+  .
+end
+
+66) #app/controllers/static_pages_controller.rb
+
+class StaticPagesController < ApplicationController
+
+  def home
+    if signed_in?
+      @micropost  = current_user.microposts.build
+      @feed_items = current_user.feed.paginate(page: params[:page])
+    end
+  end
+  .
+  .
+  .
+end
+
+67) kuba@traktor:~/rails3/sample_app$ touch app/views/shared/_feed.html.erb
+68) #app/views/shared/_feed.html.erb
+
+<% if @feed_items.any? %>
+  <ol class="microposts">
+    <%= render partial: 'shared/feed_item', collection: @feed_items %>
+  </ol>
+  <%= will_paginate @feed_items %>
+<% end %>
+
+69) kuba@traktor:~/rails3/sample_app$ touch app/views/shared/_feed_item.html.erb
+70) #app/views/shared/_feed_item.html.erb
+
+<li id="<%= feed_item.id %>">
+  <%= link_to gravatar_for(feed_item.user), feed_item.user %>
+  <span class="user">
+    <%= link_to feed_item.user.name, feed_item.user %>
+  </span>
+  <span class="content"><%= feed_item.content %></span>
+  <span class="timestamp">
+    Posted <%= time_ago_in_words(feed_item.created_at) %> ago.
+  </span>
+</li>
+
+71) #app/views/static_pages/home.html.erb
+
+<% if signed_in? %>
+  <div class="row">
+    .
+    .
+    .
+    <div class="span8">
+      <h3>Micropost Feed</h3>
+      <%= render 'shared/feed' %>
+    </div>
+  </div>
+<% else %>
+  .
+  .
+  .
+<% end %>
+
+72) #app/controllers/microposts_controller.rb
+
+class MicropostsController < ApplicationController
+  .
+  .
+  .
+  def create
+    @micropost = current_user.microposts.build(params[:micropost])
+    if @micropost.save
+      flash[:success] = "Micropost created!"
+      redirect_to root_path
+    else
+      @feed_items = []
+      render 'static_pages/home'
+    end
+  end
+  .
+  .
+  .
+end
+
+73) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/ (pass)
+
+74) #app/views/microposts/_micropost.html.erb
+
+<li>
+  <span class="content"><%= micropost.content %></span>
+  <span class="timestamp">
+    Posted <%= time_ago_in_words(micropost.created_at) %> ago.
+  </span>
+  <% if current_user?(micropost.user) %>
+    <%= link_to "delete", micropost, method: :delete,
+                                     data: { confirm: "You sure?" },
+                                     title: micropost.content %>
+  <% end %>
+</li>
+
+75) #app/views/shared/_feed_item.html.erb
+
+<li id="<%= feed_item.id %>">
+  <%= link_to gravatar_for(feed_item.user), feed_item.user %>
+    <span class="user">
+      <%= link_to feed_item.user.name, feed_item.user %>
+    </span>
+    <span class="content"><%= feed_item.content %></span>
+    <span class="timestamp">
+      Posted <%= time_ago_in_words(feed_item.created_at) %> ago.
+    </span>
+  <% if current_user?(feed_item.user) %>
+    <%= link_to "delete", feed_item, method: :delete,
+                                     data: { confirm: "You sure?" },
+                                     title: feed_item.content %>
+  <% end %>
+</li>
+
+76) #spec/requests/micropost_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Micropost pages" do
+  .
+  .
+  .
+  describe "micropost destruction" do
+    before { FactoryGirl.create(:micropost, user: user) }
+
+    describe "as correct user" do
+      before { visit root_path }
+
+      it "should delete a micropost" do
+        expect { click_link "delete" }.should change(Micropost, :count).by(-1)
+      end
+    end
+  end
+end
+
+77) #app/controllers/microposts_controller.rb
+
+class MicropostsController < ApplicationController
+  before_filter :signed_in_user, only: [:create, :destroy]
+  before_filter :correct_user,   only: :destroy
+  .
+  .
+  .
+  def destroy
+    @micropost.destroy
+    redirect_to root_path
+  end
+
+  private
+
+    def correct_user
+      @micropost = current_user.microposts.find_by_id(params[:id])
+      redirect_to root_path if @micropost.nil?
+    end
+end
+
+78) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/micropost_pages_spec.rb (pass)
+
+79) kuba@traktor:~/rails3/sample_app$ git status
+# On branch user-microposts
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#	modified:   app/assets/stylesheets/custom.css.scss
+#	modified:   app/controllers/static_pages_controller.rb
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/helpers/sessions_helper.rb
+#	modified:   app/models/user.rb
+#	modified:   app/views/shared/_error_messages.html.erb
+#	modified:   app/views/static_pages/home.html.erb
+#	modified:   app/views/users/edit.html.erb
+#	modified:   app/views/users/new.html.erb
+#	modified:   app/views/users/show.html.erb
+#	modified:   config/routes.rb
+#	modified:   db/schema.rb
+#	modified:   lib/tasks/sample_data.rake
+#	modified:   spec/factories.rb
+#	modified:   spec/models/user_spec.rb
+#	modified:   spec/requests/authentication_pages_spec.rb
+#	modified:   spec/requests/static_pages_spec.rb
+#	modified:   spec/requests/user_pages_spec.rb
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	app/controllers/microposts_controller.rb
+#	app/models/micropost.rb
+#	app/views/microposts/
+#	app/views/shared/_feed.html.erb
+#	app/views/shared/_feed_item.html.erb
+#	app/views/shared/_micropost_form.html.erb
+#	app/views/shared/_user_info.html.erb
+#	db/migrate/20120729075925_create_microposts.rb
+#	spec/models/micropost_spec.rb
+#	spec/requests/micropost_pages_spec.rb
+no changes added to commit (use "git add" and/or "git commit -a")
+
+80) kuba@traktor:~/rails3/sample_app$ git add .
+81) kuba@traktor:~/rails3/sample_app$ git status
+# On branch user-microposts
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   app/assets/stylesheets/custom.css.scss
+#	new file:   app/controllers/microposts_controller.rb
+#	modified:   app/controllers/static_pages_controller.rb
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/helpers/sessions_helper.rb
+#	new file:   app/models/micropost.rb
+#	modified:   app/models/user.rb
+#	new file:   app/views/microposts/_micropost.html.erb
+#	modified:   app/views/shared/_error_messages.html.erb
+#	new file:   app/views/shared/_feed.html.erb
+#	new file:   app/views/shared/_feed_item.html.erb
+#	new file:   app/views/shared/_micropost_form.html.erb
+#	new file:   app/views/shared/_user_info.html.erb
+#	modified:   app/views/static_pages/home.html.erb
+#	modified:   app/views/users/edit.html.erb
+#	modified:   app/views/users/new.html.erb
+#	modified:   app/views/users/show.html.erb
+#	modified:   config/routes.rb
+#	new file:   db/migrate/20120729075925_create_microposts.rb
+#	modified:   db/schema.rb
+#	modified:   lib/tasks/sample_data.rake
+#	modified:   spec/factories.rb
+#	new file:   spec/models/micropost_spec.rb
+#	modified:   spec/models/user_spec.rb
+#	modified:   spec/requests/authentication_pages_spec.rb
+#	new file:   spec/requests/micropost_pages_spec.rb
+#	modified:   spec/requests/static_pages_spec.rb
+#	modified:   spec/requests/user_pages_spec.rb
+
+82) kuba@traktor:~/rails3/sample_app$ git commit -m "Add user microposts"
+83) kuba@traktor:~/rails3/sample_app$ git checkout master
+84) kuba@traktor:~/rails3/sample_app$ git merge user-microposts 
+85) kuba@traktor:~/rails3/sample_app$ git push

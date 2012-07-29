@@ -1,0 +1,93 @@
+RSpec:
+
+Chapter 3:
+spec/
+	-> requests/
+		-> static_pages_spec.rb (6 examples)
+  -> All: 6 examples
+		
+Chapter 4:
+spec/
+	-> requests/
+		-> static_pages_spec.rb (7 examples)
+  -> All: 7 examples
+
+Chapter 5:
+spec/
+  -> requests/
+    -> static_pages_spec.rb (9 examples)
+    -> user_pages_spec.rb (2 examples)
+  -> All: 11 examples
+    
+Chapter 6:
+spec/
+  -> models/
+    -> user_spec.rb (20 examples)
+  -> requests/
+    -> static_pages_spec.rb (9 examples)
+    -> user_pages_spec.rb (2 examples)
+  -> All: 31 examples
+    
+Chapter 7:
+spec/
+  -> models/
+    -> user_spec.rb (20 examples)
+  -> requests/
+    -> static_pages_spec.rb (9 examples)
+    -> user_pages_spec.rb (6 examples)
+  -> All: 35 examples
+  
+Chapter 8:
+features/
+  -> signing_in.feature (8 steps)
+spec/
+  -> models/
+    -> user_spec.rb (22 examples)
+  -> requests/
+    -> authentication_pages_spec.rb (10 examples)
+    -> static_pages_spec.rb (9 examples)
+    -> user_pages_spec.rb (9 examples)
+  -> All: 50 examples
+  
+Chapter 9:
+features/
+  -> signing_in.feature (8 steps)
+spec/
+  -> models/
+    -> user_spec.rb (25 examples)
+  -> requests/
+    -> authentication_pages_spec.rb (19 examples)
+    -> static_pages_spec.rb (9 examples)
+    -> user_pages_spec.rb (26 examples)
+  -> All: 79 examples
+  
+Chapter 10:
+features/
+  -> signing_in.feature (8 steps)
+spec/
+  -> models/
+    -> micropost_spec.rb (9 examples)
+    -> user_spec.rb (32 examples)
+  -> requests/
+    -> authentication_pages_spec.rb (21 examples)
+    -> micropost_pages_spec.rb (4 examples)
+    -> static_pages_spec.rb (10 examples)
+    -> user_pages_spec.rb (29 examples)
+  -> All: 105 examples
+  
+Chapter 11:
+features/
+  -> signing_in.feature (8 steps)
+spec/
+  -> controllers/
+    -> relationships_controller_spec.rb (4 examples)
+  -> models/
+    -> micropost_spec.rb (9 examples)
+    -> relationship_spec.rb (8 examples)
+    -> user_spec.rb (45 examples)
+  -> requests/
+    -> authentication_pages_spec.rb (25 examples)
+    -> micropost_pages_spec.rb (4 examples)
+    -> static_pages_spec.rb (12 examples)
+    -> user_pages_spec.rb (41 examples)
+  -> All: 148 examples

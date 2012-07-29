@@ -1,0 +1,76 @@
+Rozdzial 4 (v 3.2.6)
+
+1) kuba@traktor:~$ cd rails3/sample_app/
+2) #app/helpers/application_helper.rb
+
+module ApplicationHelper
+
+  # Returns the full title on a per-page basis.
+  def full_title(page_title)
+    base_title = "Ruby on Rails Tutorial Sample App"
+    if page_title.empty?
+      base_title
+    else
+      "#{base_title} | #{page_title}"
+    end
+  end
+end
+
+3) #app/views/layouts/application.html.erb
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= full_title(yield(:title)) %></title>
+    <%= stylesheet_link_tag    "application", :media => "all" %>
+    <%= javascript_include_tag "application" %>
+    <%= csrf_meta_tags %>
+  </head>
+  <body>
+    <%= yield %>
+  </body>
+</html>
+
+4) #spec/requests/static_pages_spec.rb
+
+require 'spec_helper'
+
+describe "Static pages" do
+
+  describe "Home page" do
+
+    it "should have the h1 'Sample App'" do
+      visit '/static_pages/home'
+      page.should have_selector('h1', :text => 'Sample App')
+    end
+
+    it "should have the base title" do
+      visit '/static_pages/home'
+      page.should have_selector('title',
+                        :text => "Ruby on Rails Tutorial Sample App")
+    end
+
+    it "should not have a custom page title" do
+      visit '/static_pages/home'
+      page.should_not have_selector('title', :text => '| Home')
+    end
+  end
+  .
+  .
+  .
+end
+
+5) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/static_pages_spec.rb
+6) #app/views/static_pages/home.html.erb
+
+<h1>Sample App</h1>
+<p>
+  This is the home page for the
+  <a href="http://railstutorial.org/">Ruby on Rails Tutorial</a>
+  sample application.
+</p>
+
+7) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/static_pages_spec.rb
+8) kuba@traktor:~/rails3/sample_app$ git add .
+9) kuba@traktor:~/rails3/sample_app$ git commit -m "Add a full_title helper"
+10) kuba@traktor:~/rails3/sample_app$ git push

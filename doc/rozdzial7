@@ -1,0 +1,567 @@
+Rozdzial 7 (v 3.2.6)
+
+1) kuba@traktor:~$ cd rails3/sample_app/
+2) kuba@traktor:~/rails3/sample_app$ git checkout -b sign-up
+3) #app/views/layouts/application.html.erb
+
+<!DOCTYPE html>
+<html>
+  .
+  .
+  .
+  <body>
+    <%= render 'layouts/header' %>
+    <div class="container">
+      <%= yield %>
+      <%= render 'layouts/footer' %>
+      <%= debug(params) if Rails.env.development? %>
+    </div>
+  </body>
+</html>
+
+4) #app/assets/stylesheets/custom.css.scss
+
+@import "bootstrap";
+
+/* mixins, variables, etc. */
+
+$grayMediumLight: #eaeaea;
+
+@mixin box_sizing {
+  -moz-box-sizing: border-box; 
+  -webkit-box-sizing: border-box; 
+  box-sizing: border-box;
+}
+.
+.
+.
+
+/* miscellaneous */
+
+.debug_dump {
+  clear: both;
+  float: left;
+  width: 100%;
+  margin-top: 45px;
+  @include box_sizing;
+}
+
+5) #config/routes.rb
+
+SampleApp::Application.routes.draw do
+  resources :users
+
+  root to: 'static_pages#home'
+
+  match '/signup',  to: 'users#new'
+  .
+  .
+  .
+end
+
+6) kuba@traktor:~/rails3/sample_app$ touch app/views/users/show.html.erb
+7) #app/views/users/show.html.erb
+
+<%= @user.name %>, <%= @user.email %>
+
+8) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+
+  def show
+    @user = User.find(params[:id])
+  end
+
+  def new
+  end
+end
+
+9) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+
+  subject { page }
+
+  describe "signup page" do
+    before { visit signup_path }
+
+    it { should have_selector('h1',    text: 'Sign up') }
+    it { should have_selector('title', text: 'Sign up') }
+  end
+end
+
+10) #spec/requests/user_pages_spec.rb
+
+  describe "profile page" do
+    # Code to make a user variable
+    before { visit user_path(user) }
+
+    it { should have_selector('h1',    text: user.name) }
+    it { should have_selector('title', text: user.name) }
+  end
+
+11) #Gemfile
+
+source 'https://rubygems.org'
+  .
+  .
+  .
+  group :test do
+    .
+    .
+    .
+    gem 'factory_girl_rails', '1.4.0'
+  end
+  .
+  .
+  .
+end 
+
+12) kuba@traktor:~/rails3/sample_app$ bundle install --without production
+13) kuba@traktor:~/rails3/sample_app$ touch spec/factories.rb
+14) #spec/factories.rb
+
+FactoryGirl.define do
+  factory :user do
+    name     "slunzok"
+    email    "slunzok@gmail.com"
+    password "foobar"
+    password_confirmation "foobar"
+  end
+end
+
+15) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+
+  subject { page }
+
+  describe "profile page" do
+    let(:user) { FactoryGirl.create(:user) }
+    before { visit user_path(user) }
+
+    it { should have_selector('h1',    text: user.name) }
+    it { should have_selector('title', text: user.name) }
+  end
+  .
+  .
+  .
+end
+
+16) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (fail)
+17) #app/views/users/show.html.erb
+
+<% provide(:title, @user.name) %>
+<h1><%= @user.name %></h1>
+
+18) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (pass)
+19) #config/environments/test.rb
+
+SampleApp::Application.configure do
+  .
+  .
+  .
+  # Speed up tests by lowering BCrypt's cost function.
+  require 'bcrypt'
+  silence_warnings do
+    BCrypt::Engine::DEFAULT_COST = BCrypt::Engine::MIN_COST
+  end
+end
+
+20) #app/views/users/show.html.erb
+
+<% provide(:title, @user.name) %>
+<h1>
+  <%= gravatar_for @user %>
+  <%= @user.name %>
+</h1>
+
+21) #app/helpers/users_helper.rb
+
+module UsersHelper
+
+  # Returns the Gravatar (http://gravatar.com/) for the given user.
+  def gravatar_for(user)
+    gravatar_id = Digest::MD5::hexdigest(user.email.downcase)
+    gravatar_url = "https://secure.gravatar.com/avatar/#{gravatar_id}"
+    image_tag(gravatar_url, alt: user.name, class: "gravatar")
+  end
+  
+end
+
+22) kuba@traktor:~/rails3/sample_app$ rails console
+Loading development environment (Rails 3.2.6)
+1.9.3p194 :001 > user = User.first
+  User Load (0.4ms)  SELECT "users".* FROM "users" LIMIT 1
+ => #<User id: 1, name: "slunzok", email: "slunzok@gmail.com", created_at: "2012-07-27 09:36:42", updated_at: "2012-07-27 09:36:42", password_digest: "$2a$10$oJd7PtgkatDd9xFS9dEN8OYkoPQlml9Z5B2IvtvSXnth..."> 
+1.9.3p194 :002 > user.update_attributes(name: "Example User",
+1.9.3p194 :003 >     email: "example@railstutorial.org",
+1.9.3p194 :004 >     password: "foobar",
+1.9.3p194 :005 >     password_confirmation: "foobar")
+   (0.2ms)  begin transaction
+  User Exists (0.4ms)  SELECT 1 AS one FROM "users" WHERE (LOWER("users"."email") = LOWER('example@railstutorial.org') AND "users"."id" != 1) LIMIT 1
+   (0.9ms)  UPDATE "users" SET "name" = 'Example User', "email" = 'example@railstutorial.org', "password_digest" = '$2a$10$jdWk9f/1a34FPECYukHsQO05q9aM.s3.Ht9MmTLML21g5I2UKygF.', "updated_at" = '2012-07-27 14:33:41.823955' WHERE "users"."id" = 1
+   (5.1ms)  commit transaction
+ => true 
+
+23) #app/views/users/show.html.erb
+
+<% provide(:title, @user.name) %>
+<div class="row">
+  <aside class="span4">
+    <section>
+      <h1>
+        <%= gravatar_for @user %>
+        <%= @user.name %>
+      </h1>
+    </section>
+  </aside>
+</div>
+
+24) #app/assets/stylesheets/custom.css.scss
+
+/* sidebar */
+
+aside {
+  section {
+    padding: 10px 0;
+    border-top: 1px solid $grayLighter;
+    &:first-child {
+      border: 0;
+      padding-top: 0;
+    }
+    span {
+      display: block;
+      margin-bottom: 3px;
+      line-height: 1;
+    }
+    h1 {
+      font-size: 1.6em;
+      text-align: left;
+      letter-spacing: -1px;
+      margin-bottom: 3px;
+    }
+  }
+}
+
+.gravatar {
+  float: left;
+  margin-right: 10px;
+}
+
+25) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:reset
+26) kuba@traktor:~/rails3/sample_app$ bundle exec rake db:test:prepare
+27) #spec/requests/user_pages_spec.rb
+
+require 'spec_helper'
+
+describe "User pages" do
+
+  subject { page }
+  .
+  .
+  .
+  describe "signup" do
+
+    before { visit signup_path }
+
+    let(:submit) { "Create my account" }
+
+    describe "with invalid information" do
+      it "should not create a user" do
+        expect { click_button submit }.not_to change(User, :count)
+      end
+    end
+
+    describe "with valid information" do
+      before do
+        fill_in "Name",         with: "Example User"
+        fill_in "Email",        with: "user@example.com"
+        fill_in "Password",     with: "foobar"
+        fill_in "Confirmation", with: "foobar"
+      end
+
+      it "should create a user" do
+        expect { click_button submit }.to change(User, :count).by(1)
+      end
+    end
+  end
+end
+
+28) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb (fail)
+29) #app/views/users/new.html.erb
+
+<% provide(:title, 'Sign up') %>
+<h1>Sign up</h1>
+
+<div class="row">
+  <div class="span6 offset3">
+    <%= form_for(@user) do |f| %>
+
+      <%= f.label :name %>
+      <%= f.text_field :name %>
+
+      <%= f.label :email %>
+      <%= f.text_field :email %>
+
+      <%= f.label :password %>
+      <%= f.password_field :password %>
+
+      <%= f.label :password_confirmation, "Confirmation" %>
+      <%= f.password_field :password_confirmation %>
+
+      <%= f.submit "Create my account", class: "btn btn-large btn-primary" %>
+    <% end %>
+  </div>
+</div>
+
+30) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup page" (fail)
+31) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  .
+  .
+  .
+  def new
+    @user = User.new
+  end
+end
+
+32) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup page" (pass)
+33) #app/assets/stylesheets/custom.css.scss
+
+.
+.
+.
+
+/* forms */
+
+input, textarea, select, .uneditable-input {
+  border: 1px solid #bbb;
+  width: 100%;
+  padding: 10px;
+  height: auto;
+  margin-bottom: 15px;
+  @include box_sizing;
+}
+
+34) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup with invalid information" (fail)
+35) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  .
+  .
+  .
+  def create
+    @user = User.new(params[:user])
+    if @user.save
+      # Handle a successful save.
+    else
+      render 'new'
+    end
+  end
+end
+
+36) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup with invalid information" (pass)
+37) #app/views/users/new.html.erb
+
+<% provide(:title, 'Sign up') %>
+<h1>Sign up</h1>
+
+<div class="row">
+  <div class="span6 offset3">
+    <%= form_for(@user) do |f| %>
+      <%= render 'shared/error_messages' %>
+      .
+      .
+      .
+    <% end %>
+  </div>
+</div>
+
+38) kuba@traktor:~/rails3/sample_app$ mkdir app/views/shared
+39) kuba@traktor:~/rails3/sample_app$ touch app/views/shared/_error_messages.html.erb
+40) #app/views/shared/_error_messages.html.erb
+
+<% if @user.errors.any? %>
+  <div id="error_explanation">
+    <div class="alert alert-error">
+      The form contains <%= pluralize(@user.errors.count, "error") %>.
+    </div>
+    <ul>
+    <% @user.errors.full_messages.each do |msg| %>
+      <li>* <%= msg %></li>
+    <% end %>
+    </ul>
+  </div>
+<% end %>
+
+41) #app/assets/stylesheets/custom.css.scss
+
+.
+.
+.
+
+/* forms */
+.
+.
+.
+#error_explanation {
+  color: #f00;
+  ul {
+    list-style: none;
+    margin: 0 0 18px 0;
+  }
+}
+
+.field_with_errors {
+  @extend .control-group;
+  @extend .error;
+ }
+ 
+42) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup with invalid information" (pass)
+43) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup with valid information" (fail)
+44) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  .
+  .
+  .
+  def create
+    @user = User.new(params[:user])
+    if @user.save
+      redirect_to @user
+    else
+      render 'new'
+    end
+  end
+end
+
+45) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/user_pages_spec.rb -e "signup with valid information" (pass)
+46) kuba@traktor:~/rails3/sample_app$ rails console
+Loading development environment (Rails 3.2.6)
+1.9.3p194 :001 > flash = { success: "It worked!", error: "It failed." }
+ => {:success=>"It worked!", :error=>"It failed."} 
+1.9.3p194 :002 > flash.each do |key, value|
+1.9.3p194 :003 >     puts "#{key}"
+1.9.3p194 :004?>   puts "#{value}"
+1.9.3p194 :005?>   end
+success
+It worked!
+error
+It failed.
+ => {:success=>"It worked!", :error=>"It failed."} 
+
+47) #app/views/layouts/application.html.erb
+
+<!DOCTYPE html>
+<html>
+  .
+  .
+  .
+  <body>
+    <%= render 'layouts/header' %>
+    <div class="container">
+      <% flash.each do |key, value| %>
+        <div class="alert alert-<%= key %>"><%= value %></div>
+      <% end %>
+      <%= yield %>
+      <%= render 'layouts/footer' %>
+      <%= debug(params) if Rails.env.development? %>
+    </div>
+    .
+    .
+    .
+  </body>
+</html>
+
+48) #app/controllers/users_controller.rb
+
+class UsersController < ApplicationController
+  .
+  .
+  .
+  def create
+    @user = User.new(params[:user])
+    if @user.save
+      flash[:success] = "Welcome to the Sample App!"
+      redirect_to @user
+    else
+      render 'new'
+    end
+  end
+end
+
+49) kuba@traktor:~/rails3/sample_app$ rails console
+Loading development environment (Rails 3.2.6)
+1.9.3p194 :001 > User.find_by_email("example@railstutorial.org")
+  User Load (0.5ms)  SELECT "users".* FROM "users" WHERE "users"."email" = 'example@railstutorial.org' LIMIT 1
+ => #<User id: 1, name: "Rails Tutorial", email: "example@railstutorial.org", created_at: "2012-07-27 15:33:05", updated_at: "2012-07-27 15:33:05", password_digest: "$2a$10$zsS2vi2uDUTvvyiI77iZhuzUjOWCthvWVm.p.Z4SbKkV..."> 
+ 
+50) kuba@traktor:~/rails3/sample_app$ git status
+# On branch sign-up
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#	modified:   app/assets/stylesheets/custom.css.scss
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/helpers/users_helper.rb
+#	modified:   app/views/layouts/application.html.erb
+#	modified:   app/views/users/new.html.erb
+#	modified:   config/environments/test.rb
+#	modified:   config/routes.rb
+#	modified:   spec/requests/user_pages_spec.rb
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	app/views/shared/
+#	app/views/users/show.html.erb
+#	spec/factories.rb
+no changes added to commit (use "git add" and/or "git commit -a")
+
+51) kuba@traktor:~/rails3/sample_app$ git add .
+52) kuba@traktor:~/rails3/sample_app$ git status
+# On branch sign-up
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#	modified:   app/assets/stylesheets/custom.css.scss
+#	modified:   app/controllers/users_controller.rb
+#	modified:   app/helpers/users_helper.rb
+#	modified:   app/views/layouts/application.html.erb
+#	new file:   app/views/shared/_error_messages.html.erb
+#	modified:   app/views/users/new.html.erb
+#	new file:   app/views/users/show.html.erb
+#	modified:   config/environments/test.rb
+#	modified:   config/routes.rb
+#	new file:   spec/factories.rb
+#	modified:   spec/requests/user_pages_spec.rb
+
+53) kuba@traktor:~/rails3/sample_app$ git commit -m "Finish user signup"
+54) kuba@traktor:~/rails3/sample_app$ git checkout master
+55) kuba@traktor:~/rails3/sample_app$ git merge sign-up 
+56) #config/environments/production.rb
+
+SampleApp::Application.configure do
+  .
+  .
+  .
+  # Force all access to the app over SSL, use Strict-Transport-Security, 
+  # and use secure cookies.
+  config.force_ssl = true
+  .
+  .
+  .
+end
+
+57) kuba@traktor:~/rails3/sample_app$ git commit -a -m "Add SSL in production"
+58) kuba@traktor:~/rails3/sample_app$ git push

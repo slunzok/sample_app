@@ -1,0 +1,149 @@
+Rozdzial 3 (v 3.2.6)
+
+1) kuba@traktor:~$ cd rails3/
+2) kuba@traktor:~/rails3$ rails new sample_app --skip-test-unit
+3) kuba@traktor:~/rails3$ cd sample_app/
+4) #Gemfile
+
+source 'https://rubygems.org'
+
+gem 'rails', '3.2.6'
+gem "railties", ">= 3.2.6" #to musialem dodac, bo akurat dzien wczesniej zmienila sie wersja railties i sa problemy z zaleznosciami :/
+
+group :development, :test do
+  gem 'sqlite3', '1.3.5'
+  gem 'rspec-rails', '2.10.0'
+end
+
+group :assets do
+  gem 'sass-rails',   '3.2.4'
+  #gem 'coffee-rails', '3.2.2'
+  #gem 'uglifier', '1.2.3'
+end
+
+gem 'jquery-rails', '2.0.0'
+
+group :test do
+  gem 'capybara', '1.1.2'
+end
+
+group :production do
+  gem 'pg', '0.12.2'
+end
+
+5) kuba@traktor:~/rails3/sample_app$ bundle install --without production
+6) kuba@traktor:~/rails3/sample_app$ rails generate rspec:install
+
+7) kuba@traktor:~/rails3/sample_app$ git init
+8) kuba@traktor:~/rails3/sample_app$ git add .
+9) kuba@traktor:~/rails3/sample_app$ git commit -m "Initial commit"
+10) kuba@traktor:~/rails3/sample_app$ git mv README.rdoc README.md 
+11) kuba@traktor:~/rails3/sample_app$ git commit -a -m "Improve the README"
+12) https://github.com/new
+13) kuba@traktor:~/rails3/sample_app$ git remote add origin git@github.com:slunzok/sample_app.git
+14) kuba@traktor:~/rails3/sample_app$ git push origin master
+
+15) kuba@traktor:~/rails3/sample_app$ git checkout -b statis-pages
+16) kuba@traktor:~/rails3/sample_app$ rails generate controller StaticPages home help --no-test-framework
+17) kuba@traktor:~/rails3/sample_app$ git add .
+18) kuba@traktor:~/rails3/sample_app$ git commit -m "Add a StaticPages controller"
+
+19) kuba@traktor:~/rails3/sample_app$ rails generate integration_test static_pages
+20) #spec/requests/static_pages_spec.rb (1 test)
+
+require 'spec_helper'
+
+describe "Static pages" do
+
+  describe "Home page" do
+
+    it "should have the content 'Sample App'" do
+      visit '/static_pages/home'
+      page.should have_content('Sample App')
+    end
+  end
+end
+
+21) kuba@traktor:~/rails3/sample_app$ bundle exec rspec spec/requests/static_pages_spec.rb
+22) #spec/requests/static_pages_spec.rb (3 testy)
+
+require 'spec_helper'
+
+describe "Static pages" do
+
+  describe "Home page" do
+
+    it "should have the content 'Sample App'" do
+      visit '/static_pages/home'
+      page.should have_content('Sample App')
+    end
+  end
+
+  describe "Help page" do
+
+    it "should have the content 'Help'" do
+      visit '/static_pages/help'
+      page.should have_content('Help')
+    end
+  end
+
+  describe "About page" do
+
+    it "should have the content 'About Us'" do
+      visit '/static_pages/about'
+      page.should have_content('About Us')
+    end
+  end
+end
+
+23) #spec/requests/static_pages_spec.rb (6 testow)
+
+require 'spec_helper'
+
+describe "Static pages" do
+
+  describe "Home page" do
+
+    it "should have the h1 'Sample App'" do
+      visit '/static_pages/home'
+      page.should have_selector('h1', :text => 'Sample App')
+    end
+
+    it "should have the title 'Home'" do
+      visit '/static_pages/home'
+      page.should have_selector('title', :text => "Ruby on Rails Tutorial Sample App | Home")
+    end
+  end
+
+  describe "Help page" do
+
+    it "should have the h1 'Help'" do
+      visit '/static_pages/help'
+      page.should have_selector('h1', :text => 'Help')
+    end
+
+    it "should have the title 'Help'" do
+      visit '/static_pages/help'
+      page.should have_selector('title', :text => "Ruby on Rails Tutorial Sample App | Help")
+    end
+  end
+
+  describe "About page" do
+
+    it "should have the h1 'About Us'" do
+      visit '/static_pages/about'
+      page.should have_selector('h1', :text => 'About Us')
+    end
+
+    it "should have the title 'About Us'" do
+      visit '/static_pages/about'
+      page.should have_selector('title', :text => "Ruby on Rails Tutorial Sample App | About Us")
+    end
+  end
+end
+
+24) kuba@traktor:~/rails3/sample_app$ git add .
+25) kuba@traktor:~/rails3/sample_app$ git commit -m "Finish static pages"
+26) kuba@traktor:~/rails3/sample_app$ git checkout master
+27) kuba@traktor:~/rails3/sample_app$ git merge statis-pages
+28) kuba@traktor:~/rails3/sample_app$ git push
